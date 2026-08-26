@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="es" class="setup-active">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Editor</title>
+<style>
+  :root{
+    --bg: #0a0f0d;
+    --panel: #111917;
+    --line: #1e2b27;
+    --neon: #39ff9a;
+    --neon-dim: #1f8a5c;
+    --text: #d8f5e6;
+    --muted: #6d8c7f;
+    --danger: #ff5f6d;
+    --warn: #ffb03b;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body{ height:100%; margin:0; overflow:hidden; }
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Courier New", Consolas, monospace;
+    user-select: none;
+  }
+  h1{
+    font-size: 16px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 8px rgba(57,255,154,0.45);
+    margin: 0 0 4px;
+  }
+  .sub{ color: var(--muted); font-size: 11px; margin: 0 0 16px; line-height: 1.6; }
+  .panel{ background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; margin-bottom: 16px; }
+  label{ display:block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  input[type=number]{ background:#05100b; border:1px solid var(--line); color:var(--neon); padding:7px 8px; font-family:inherit; font-size:13px; border-radius:2px; width:100%; }
+  input[type=color]{ width:34px; height:30px; padding:2px; border:1px solid var(--line); background:#05100b; border-radius:2px; cursor:pointer; }
+  button{ background:var(--neon); color:#05100b; border:none; font-family:inherit; font-weight:bold; letter-spacing:1px; text-transform:uppercase; padding:9px 14px; font-size:11px; border-radius:2px; cursor:pointer; white-space:nowrap; }
+  button:hover{ background:#7dffbd; }
+  button:disabled{ background:var(--neon-dim); cursor:not-allowed; }
+  button.secondary{ background:transparent; color:var(--neon); border:1px solid var(--neon-dim); }
+  button.secondary:hover{ background:rgba(57,255,154,0.08); }
+  button.secondary.active-tool{ background:var(--neon); color:#05100b; }
+  button.danger{ background:transparent; color:var(--danger); border:1px solid var(--danger); }
+  button.danger:hover{ background:rgba(255,95,109,0.1); }
+  button.tiny{ padding:5px 9px; font-size:10px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .field{ min-width:100px; }
+  .status{ font-size:12px; color:var(--muted); margin-top:8px; min-height:16px; }
+
+  .setup-grid{ display:grid; grid-template-columns: repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+
+  .palette-row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .swatch{ width:30px; height:30px; border-radius:3px; border:2px solid var(--line); cursor:pointer; padding:0; }
+  .swatch.active{ border-color:var(--neon); box-shadow:0 0 6px rgba(57,255,154,0.6); }
+  .swatch.eraser{ background-image: linear-gradient(45deg,#333 25%,transparent 25%),linear-gradient(-45deg,#333 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#333 75%),linear-gradient(-45deg,transparent 75%,#333 75%); background-size:8px 8px; background-position:0 0,0 4px,4px -4px,-4px 0; background-color:#111; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+
+  .editor-layout{ display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start; }
+  .canvas-wrap{
+    background-image:
+      linear-gradient(45deg, #14211c 25%, transparent 25%),
+      linear-gradient(-45deg, #14211c 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #14211c 75%),
+      linear-gradient(-45deg, transparent 75%, #14211c 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #0a1310;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display:inline-block;
+    padding: 10px;
+  }
+  #drawCanvas{ image-rendering: pixelated; display:block; cursor: crosshair; }
+
+  .side-panel{ min-width: 220px; flex:1; }
+
+  .frame-strip{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .frame-thumb{ position:relative; border:2px solid var(--line); border-radius:3px; padding:3px; cursor:pointer;
+    background-image: linear-gradient(45deg, #14211c 25%, transparent 25%),linear-gradient(-45deg, #14211c 25%, transparent 25%),linear-gradient(45deg, transparent 75%, #14211c 75%),linear-gradient(-45deg, transparent 75%, #14211c 75%);
+    background-size: 10px 10px; background-position:0 0,0 5px,5px -5px,-5px 0; background-color:#0a1310;
+  }
+  .frame-thumb.active{ border-color: var(--neon); }
+  .frame-thumb canvas{ image-rendering: pixelated; display:block; }
+  .frame-thumb .idx{ font-size:9px; color:var(--muted); text-align:center; }
+  .frame-thumb .del{ position:absolute; top:-7px; right:-7px; background:var(--danger); color:#1a0a0a; border-radius:50%; width:16px; height:16px; font-size:10px; line-height:16px; text-align:center; cursor:pointer; }
+
+  .onion-btn{ user-select:none; }
+
+  /* ---------- screen 1: setup ---------- */
+  html.setup-active, html.setup-active body{ overflow:auto; height:auto; }
+  #setupScreen{ max-width: 720px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ---------- screen 2: floating edit environment ---------- */
+  #floatingBar{
+    position: fixed; top: 10px; left: 10px; z-index: 200;
+    display:flex; gap:8px; flex-wrap: wrap;
+    transform: translateZ(0);
+    will-change: transform;
+    pointer-events: auto;
+    max-width: calc(100vw - 20px);
+  }
+  #floatingBar button{ box-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+  #zoomControl{
+    display:none; align-items:center; gap:6px;
+    background: rgba(10,15,13,0.95); border:1px solid var(--neon-dim); border-radius: 3px;
+    padding: 4px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  }
+  #zoomControl button{ padding: 4px 10px; font-size:13px; }
+  #zoomReadout{ font-size: 11px; color: var(--neon); min-width: 34px; text-align:center; }
+  #canvasScrollArea{
+    position: fixed; inset: 0; overflow: auto; touch-action: none;
+    background: var(--bg); z-index: 1;
+    display:flex; align-items:flex-start; justify-content:flex-start;
+    padding: 50vh 50vw;
+  }
+  #canvasScrollArea.pan-mode{ touch-action: pan-x pan-y; cursor: grab; }
+  #canvasScrollArea.pan-mode.grabbing{ cursor: grabbing; }
+  #controlsPanel{
+    position: fixed; top: 56px; left: 10px; right: 10px;
+    max-width: 640px;
+    max-height: calc(100vh - 70px);
+    overflow-y: auto;
+    background: rgba(10,15,13,0.97);
+    border: 1px solid var(--neon-dim);
+    border-radius: 6px;
+    padding: 16px;
+    z-index: 40;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+  }
+  #controlsPanel.hidden{ display:none; }
+</style>
+</head>
+<body>
+
+<div id="setupScreen">
+
+<h1>Pixel Editor</h1>
+<p class="sub">
+  Configurá el lienzo y la paleta acá, o cargá una imagen existente para editar sus píxeles.
+  Cuando estés listo, "Crear / continuar" te lleva al entorno de edición con controles flotantes.
+</p>
+
+<div class="panel">
+  <div class="panel-title" style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Lienzo y paleta</div>
+  <div class="setup-grid">
+    <div class="field">
+      <label>Ancho (px)</label>
+      <input type="number" id="widthInput" value="32" min="4" max="128">
+    </div>
+    <div class="field">
+      <label>Alto (px)</label>
+      <input type="number" id="heightInput" value="32" min="4" max="128">
+    </div>
+    <div class="field">
+      <label>Zoom inicial</label>
+      <input type="number" id="zoomInput" value="12" min="2" max="32">
+    </div>
+    <div class="field">
+      <label>Cantidad de colores</label>
+      <input type="number" id="paletteCountInput" value="6" min="1" max="32">
+    </div>
+  </div>
+  <div class="palette-row" id="paletteSetupRow"></div>
+  <div class="row" style="margin-top:14px;">
+    <button class="secondary" id="importPaletteBtn">Importar paleta (.json)</button>
+    <button class="secondary" id="exportPaletteSetupBtn">Exportar paleta (.json)</button>
+    <input type="file" id="importPaletteFile" accept="application/json" style="display:none;">
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-title" style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:12px;">Cargar imagen para editar (opcional)</div>
+  <input type="file" id="loadImageInput" accept="image/*">
+  <div class="status" id="loadImageStatus"></div>
+</div>
+
+<div class="row">
+  <button id="createCanvasBtn">Crear / continuar</button>
+  <span class="status" id="setupStatus" style="margin:0;"></span>
+</div>
+
+</div>
+
+<div id="editScreen" style="display:none;">
+
+<div id="floatingBar">
+  <button class="secondary" id="backToSetupBtn">← Inicio</button>
+  <button class="secondary" id="toggleControlsBtn">☰ Controles</button>
+  <button class="secondary" id="moveBtn">✋ Mover</button>
+  <div id="zoomControl">
+    <button class="tiny secondary" id="zoomOutBtn">−</button>
+    <span id="zoomReadout">12x</span>
+    <button class="tiny secondary" id="zoomInBtn">+</button>
+  </div>
+</div>
+
+<div id="canvasScrollArea">
+  <div class="canvas-wrap">
+    <canvas id="drawCanvas"></canvas>
+  </div>
+</div>
+
+<div id="controlsPanel">
+
+<div id="editorSection">
+
+  <div class="toolbar">
+    <button class="secondary active-tool" id="toolPencil">Lápiz</button>
+    <button class="secondary" id="toolEraser">Borrador</button>
+    <button class="secondary" id="toolSelect">Recortar y mover</button>
+    <button class="secondary" id="toolFill">Relleno (fill)</button>
+    <button class="secondary" id="toolCenter">Centrar composición</button>
+    <button class="secondary" id="toolSweep">Barrido de contorno (2px)</button>
+    <button class="secondary" id="undoBtn" disabled>Deshacer</button>
+    <button class="secondary onion-btn" id="onionBtn">Ver frame anterior (mantener)</button>
+    <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--text); text-transform:none; letter-spacing:0; margin:0;">
+      <input type="checkbox" id="onionAlwaysCheck" style="width:auto;"> onion skin siempre visible
+    </label>
+  </div>
+
+  <div class="toolbar">
+    <span class="status" style="margin:0; align-self:center;">Voltear/rotar — actúa sobre la selección activa, o sobre todo el frame si no hay ninguna:</span>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" id="flipHBtn">Voltear horizontal</button>
+    <button class="secondary" id="flipVBtn">Voltear vertical</button>
+    <button class="secondary" id="rotate90Btn">Rotar 90°</button>
+    <button class="secondary" id="rotate45Btn">Rotar 45°</button>
+    <button class="secondary" id="rotate30Btn">Rotar 30°</button>
+  </div>
+
+  <div class="toolbar">
+    <span class="status" style="margin:0; align-self:center;">Formas — elegí y arrastrá sobre el lienzo para definir el tamaño:</span>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" id="shapeCircleBtn">◯ Círculo</button>
+    <button class="secondary" id="shapeSquareBtn">☐ Cuadrado</button>
+    <button class="secondary" id="shapeTriangleBtn">△ Triángulo</button>
+  </div>
+
+  <div class="palette-row" id="paletteRow"></div>
+  <div class="row" style="margin-top:10px;">
+    <button class="secondary" id="importPaletteBtnEdit">Importar paleta (.json)</button>
+    <button class="secondary" id="exportPaletteBtnEdit">Exportar paleta (.json)</button>
+    <input type="file" id="importPaletteFileEdit" accept="application/json" style="display:none;">
+  </div>
+
+  <div class="editor-layout" style="margin-top:14px;">
+    <div class="side-panel">
+      <div class="panel-title" style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin-bottom:10px;">Frames de la animación</div>
+      <div class="row">
+        <button id="newFrameBtn">+ Frame nuevo</button>
+        <button class="secondary" id="dupFrameBtn">Duplicar frame</button>
+      </div>
+      <div class="frame-strip" id="frameStrip"></div>
+
+      <div class="panel-title" style="font-size:11px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); margin:18px 0 10px;">Exportar</div>
+      <div class="row">
+        <button class="secondary" id="exportCurrentBtn">Descargar frame actual</button>
+        <button id="exportAllBtn">Descargar todos (.zip)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="editorStatus"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+(function(){
+  // ---------- ZIP writer (store-only, no compression) ----------
+  function crc32(bytes){
+    if (!crc32.table) {
+      const table = new Uint32Array(256);
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        table[n] = c >>> 0;
+      }
+      crc32.table = table;
+    }
+    let crc = 0xFFFFFFFF;
+    for (let i = 0; i < bytes.length; i++) crc = crc32.table[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function concatBytes(arrays){
+    let total = 0;
+    for (const a of arrays) total += a.byteLength;
+    const out = new Uint8Array(total);
+    let off = 0;
+    for (const a of arrays) { out.set(a, off); off += a.byteLength; }
+    return out;
+  }
+  function makeZip(files){
+    const encoder = new TextEncoder();
+    const localChunks = [];
+    const centralChunks = [];
+    let offset = 0;
+    for (const file of files) {
+      const nameBytes = encoder.encode(file.name);
+      const data = file.data;
+      const crc = crc32(data);
+      const size = data.length;
+      const lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true);
+      lh.setUint16(4, 20, true); lh.setUint16(6, 0, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, 0, true); lh.setUint16(12, 0x21, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+      lh.setUint16(26, nameBytes.length, true); lh.setUint16(28, 0, true);
+      const lhBytes = new Uint8Array(lh.buffer);
+      localChunks.push(lhBytes, nameBytes, data);
+
+      const ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true);
+      ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, 0, true); ch.setUint16(14, 0x21, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+      ch.setUint16(28, nameBytes.length, true); ch.setUint16(30, 0, true); ch.setUint16(32, 0, true);
+      ch.setUint16(34, 0, true); ch.setUint16(36, 0, true); ch.setUint32(38, 0, true);
+      ch.setUint32(42, offset, true);
+      centralChunks.push(new Uint8Array(ch.buffer), nameBytes);
+      offset += lhBytes.length + nameBytes.length + size;
+    }
+    const centralStart = offset;
+    const centralBytes = concatBytes(centralChunks);
+    const eocd = new DataView(new ArrayBuffer(22));
+    eocd.setUint32(0, 0x06054b50, true);
+    eocd.setUint16(4, 0, true); eocd.setUint16(6, 0, true);
+    eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true);
+    eocd.setUint32(12, centralBytes.length, true); eocd.setUint32(16, centralStart, true);
+    eocd.setUint16(20, 0, true);
+    return concatBytes([...localChunks, centralBytes, new Uint8Array(eocd.buffer)]);
+  }
+
+  // ---------- DOM refs ----------
+  const setupScreen = document.getElementById('setupScreen');
+  const editScreen = document.getElementById('editScreen');
+  const widthInput = document.getElementById('widthInput');
+  const heightInput = document.getElementById('heightInput');
+  const zoomInput = document.getElementById('zoomInput');
+  const paletteCountInput = document.getElementById('paletteCountInput');
+  const paletteSetupRow = document.getElementById('paletteSetupRow');
+  const createCanvasBtn = document.getElementById('createCanvasBtn');
+  const setupStatus = document.getElementById('setupStatus');
+  const editorSection = document.getElementById('editorSection');
+  const loadImageInput = document.getElementById('loadImageInput');
+  const loadImageStatus = document.getElementById('loadImageStatus');
+  const importPaletteBtn = document.getElementById('importPaletteBtn');
+  const importPaletteFile = document.getElementById('importPaletteFile');
+  const exportPaletteSetupBtn = document.getElementById('exportPaletteSetupBtn');
+  const importPaletteBtnEdit = document.getElementById('importPaletteBtnEdit');
+  const importPaletteFileEdit = document.getElementById('importPaletteFileEdit');
+  const exportPaletteBtnEdit = document.getElementById('exportPaletteBtnEdit');
+  const backToSetupBtn = document.getElementById('backToSetupBtn');
+  const zoomControl = document.getElementById('zoomControl');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomReadout = document.getElementById('zoomReadout');
+
+  const toolPencil = document.getElementById('toolPencil');
+  const toolEraser = document.getElementById('toolEraser');
+  const toolSelect = document.getElementById('toolSelect');
+  const toolCenter = document.getElementById('toolCenter');
+  const toolSweep = document.getElementById('toolSweep');
+  const toolFill = document.getElementById('toolFill');
+  const flipHBtn = document.getElementById('flipHBtn');
+  const flipVBtn = document.getElementById('flipVBtn');
+  const rotate90Btn = document.getElementById('rotate90Btn');
+  const rotate45Btn = document.getElementById('rotate45Btn');
+  const rotate30Btn = document.getElementById('rotate30Btn');
+  const shapeCircleBtn = document.getElementById('shapeCircleBtn');
+  const shapeSquareBtn = document.getElementById('shapeSquareBtn');
+  const shapeTriangleBtn = document.getElementById('shapeTriangleBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const onionBtn = document.getElementById('onionBtn');
+  const onionAlwaysCheck = document.getElementById('onionAlwaysCheck');
+  const paletteRow = document.getElementById('paletteRow');
+  const drawCanvas = document.getElementById('drawCanvas');
+  const frameStrip = document.getElementById('frameStrip');
+  const newFrameBtn = document.getElementById('newFrameBtn');
+  const dupFrameBtn = document.getElementById('dupFrameBtn');
+  const exportCurrentBtn = document.getElementById('exportCurrentBtn');
+  const exportAllBtn = document.getElementById('exportAllBtn');
+  const editorStatus = document.getElementById('editorStatus');
+  const toggleControlsBtn = document.getElementById('toggleControlsBtn');
+  const moveBtn = document.getElementById('moveBtn');
+  const controlsPanel = document.getElementById('controlsPanel');
+  const canvasScrollArea = document.getElementById('canvasScrollArea');
+
+  // ---------- state ----------
+  let W = 32, H = 32, zoom = 12;
+  let palette = [];
+  let activeColorIndex = 0; // -1 = eraser
+  let frames = []; // array of Uint8ClampedArray(W*H*4)
+  let currentFrame = 0;
+  let tool = 'pencil';
+  let undoStack = []; // { frameIndex, data }
+  let painting = false;
+  let lastPaintCell = null;
+
+  let selection = null; // { x,y,w,h, buffer(Uint8ClampedArray), origX, origY, dragging, dragStart }
+  let marquee = null; // { startX, startY, curX, curY } while drawing selection rect
+
+  let showOnion = false;
+  let moveMode = false;
+  let loadedImageData = null; // { data: Uint8ClampedArray, w, h } when an existing image was loaded to edit
+
+  function setStatus(msg){ editorStatus.textContent = msg; }
+
+  // ---------- setup: palette swatches ----------
+  function renderPaletteSetup(colors){
+    const n = colors ? colors.length : Math.max(1, Math.min(32, parseInt(paletteCountInput.value, 10) || 1));
+    const defaults = ['#e0b080','#3a6ea5','#a53a3a','#3aa53a','#222222','#ffffff','#8855cc','#ffcc33'];
+    paletteSetupRow.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const inp = document.createElement('input');
+      inp.type = 'color';
+      inp.value = colors ? colors[i] : defaults[i % defaults.length];
+      inp.dataset.idx = i;
+      paletteSetupRow.appendChild(inp);
+    }
+    if (colors) paletteCountInput.value = n;
+  }
+  paletteCountInput.addEventListener('input', () => renderPaletteSetup());
+  renderPaletteSetup();
+
+  // ---------- palette JSON export / import (setup screen) ----------
+  function currentSetupPaletteColors(){
+    return Array.from(paletteSetupRow.querySelectorAll('input[type=color]')).map(i => i.value);
+  }
+  function downloadJson(obj, filename){
+    const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  exportPaletteSetupBtn.addEventListener('click', () => {
+    downloadJson({
+      palette: currentSetupPaletteColors(),
+      width: parseInt(widthInput.value,10) || 32,
+      height: parseInt(heightInput.value,10) || 32
+    }, 'paleta.json');
+  });
+  importPaletteBtn.addEventListener('click', () => importPaletteFile.click());
+  importPaletteFile.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (!Array.isArray(obj.palette) || obj.palette.length === 0) throw new Error('El JSON no tiene un array "palette" válido.');
+        renderPaletteSetup(obj.palette);
+        if (obj.width) widthInput.value = obj.width;
+        if (obj.height) heightInput.value = obj.height;
+        setupStatus.textContent = `Paleta importada (${obj.palette.length} color(es))${obj.width?` y grilla ${obj.width}×${obj.height}px`:''}.`;
+      } catch(err) {
+        setupStatus.textContent = 'No se pudo leer el JSON: ' + err.message;
+      }
+    };
+    reader.readAsText(file);
+    importPaletteFile.value = '';
+  });
+
+  // ---------- load an existing image to edit ----------
+  loadImageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      const w = img.width, h = img.height;
+      const tmp = document.createElement('canvas');
+      tmp.width = w; tmp.height = h;
+      const tctx = tmp.getContext('2d');
+      tctx.imageSmoothingEnabled = false;
+      tctx.drawImage(img, 0, 0);
+      const data = tctx.getImageData(0, 0, w, h).data;
+      loadedImageData = { data: new Uint8ClampedArray(data), w, h };
+      widthInput.value = w; heightInput.value = h;
+
+      // auto-extract the palette actually used in the image
+      const seen = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i+3] === 0) continue;
+        const key = data[i] + ',' + data[i+1] + ',' + data[i+2];
+        seen.set(key, (seen.get(key)||0)+1);
+      }
+      const uniqueColors = Array.from(seen.keys());
+      const hexColors = uniqueColors.slice(0, 32).map(k => {
+        const [r,g,b] = k.split(',').map(Number);
+        return '#' + [r,g,b].map(v=>v.toString(16).padStart(2,'0')).join('');
+      });
+      if (hexColors.length > 0) renderPaletteSetup(hexColors);
+      let msg = `Imagen cargada: ${w}×${h}px, ${uniqueColors.length} color(es) detectados`;
+      if (uniqueColors.length > 32) msg += ` (se tomaron los primeros 32 — probá el Atlas Pixelizer si necesitás reducir la paleta).`;
+      else msg += ' — paleta actualizada automáticamente.';
+      loadImageStatus.textContent = msg;
+    };
+    img.onerror = () => { loadImageStatus.textContent = 'No se pudo leer la imagen.'; };
+    img.src = URL.createObjectURL(file);
+  });
+
+  // ---------- screen transition ----------
+  function goToEditScreen(){
+    setupScreen.style.display = 'none';
+    editScreen.style.display = 'block';
+    document.documentElement.classList.remove('setup-active');
+    requestAnimationFrame(() => {
+      const wrap = document.querySelector('.canvas-wrap');
+      canvasScrollArea.scrollLeft = wrap.offsetWidth/2;
+      canvasScrollArea.scrollTop = wrap.offsetHeight/2;
+    });
+  }
+  backToSetupBtn.addEventListener('click', () => {
+    editScreen.style.display = 'none';
+    setupScreen.style.display = 'block';
+    document.documentElement.classList.add('setup-active');
+  });
+
+  createCanvasBtn.addEventListener('click', () => {
+    if (loadedImageData) {
+      W = loadedImageData.w; H = loadedImageData.h;
+    } else {
+      W = Math.max(4, Math.min(128, parseInt(widthInput.value, 10) || 32));
+      H = Math.max(4, Math.min(128, parseInt(heightInput.value, 10) || 32));
+    }
+    zoom = Math.max(2, Math.min(32, parseInt(zoomInput.value, 10) || 12));
+    palette = currentSetupPaletteColors();
+    frames = [loadedImageData ? new Uint8ClampedArray(loadedImageData.data) : new Uint8ClampedArray(W*H*4)];
+    currentFrame = 0;
+    undoStack = [];
+    activeColorIndex = 0;
+    tool = 'pencil';
+    setToolUI();
+    renderPaletteRow();
+    drawCanvas.width = W*zoom;
+    drawCanvas.height = H*zoom;
+    zoomReadout.textContent = zoom + 'x';
+    setupStatus.textContent = `Lienzo ${W}×${H}px creado con ${palette.length} color(es).`;
+    renderFrameStrip();
+    render();
+    goToEditScreen();
+  });
+
+  // ---------- palette (editing) ----------
+  function renderPaletteRow(){
+    paletteRow.innerHTML = '';
+    palette.forEach((col, i) => {
+      const sw = document.createElement('button');
+      sw.className = 'swatch' + (activeColorIndex === i ? ' active' : '');
+      sw.style.background = col;
+      sw.title = col;
+      sw.addEventListener('click', () => { activeColorIndex = i; if (tool === 'eraser') tool = 'pencil'; setToolUI(); renderPaletteRow(); });
+      paletteRow.appendChild(sw);
+    });
+    const eraserSw = document.createElement('button');
+    eraserSw.className = 'swatch eraser' + (activeColorIndex === -1 ? ' active' : '');
+    eraserSw.title = 'Borrador';
+    eraserSw.addEventListener('click', () => { activeColorIndex = -1; tool = 'eraser'; setToolUI(); renderPaletteRow(); });
+    paletteRow.appendChild(eraserSw);
+  }
+
+  // ---------- tools ----------
+  function setToolUI(){
+    [toolPencil, toolEraser, toolSelect, toolCenter, toolSweep, toolFill, shapeCircleBtn, shapeSquareBtn, shapeTriangleBtn].forEach(b => b.classList.remove('active-tool'));
+    if (tool === 'pencil') toolPencil.classList.add('active-tool');
+    if (tool === 'eraser') toolEraser.classList.add('active-tool');
+    if (tool === 'select') toolSelect.classList.add('active-tool');
+    if (tool === 'fill') toolFill.classList.add('active-tool');
+    if (tool === 'shape-circle') shapeCircleBtn.classList.add('active-tool');
+    if (tool === 'shape-square') shapeSquareBtn.classList.add('active-tool');
+    if (tool === 'shape-triangle') shapeTriangleBtn.classList.add('active-tool');
+  }
+  toolPencil.addEventListener('click', () => { commitSelectionIfAny(); tool='pencil'; if(activeColorIndex===-1) activeColorIndex=0; setToolUI(); renderPaletteRow(); });
+  toolEraser.addEventListener('click', () => { commitSelectionIfAny(); tool='eraser'; activeColorIndex=-1; setToolUI(); renderPaletteRow(); });
+  toolSelect.addEventListener('click', () => { tool='select'; setToolUI(); });
+  toolCenter.addEventListener('click', () => {
+    commitSelectionIfAny();
+    setStatus('Tocá el píxel que querés llevar al centro.');
+    pendingCenterClick = true;
+  });
+  toolSweep.addEventListener('click', () => {
+    commitSelectionIfAny();
+    pushUndo();
+    const data = frames[currentFrame];
+    let cleared = 0;
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+      if (x<=1||x>=W-2||y<=1||y>=H-2){
+        const i=(y*W+x)*4;
+        if (data[i+3]>0){ data[i+3]=0; cleared++; }
+      }
+    }
+    render();
+    renderFrameStrip();
+    setStatus(`Barrido completo — ${cleared} píxel(es) borrados del contorno.`);
+  });
+  let pendingCenterClick = false;
+
+  undoBtn.addEventListener('click', () => {
+    if (undoStack.length === 0) return;
+    const last = undoStack.pop();
+    frames[last.frameIndex] = last.data;
+    undoBtn.disabled = undoStack.length === 0;
+    render();
+    renderFrameStrip();
+    setStatus('Cambio deshecho.');
+  });
+  function pushUndo(){
+    undoStack.push({ frameIndex: currentFrame, data: new Uint8ClampedArray(frames[currentFrame]) });
+    if (undoStack.length > 30) undoStack.shift();
+    undoBtn.disabled = false;
+  }
+
+  // ---------- onion skin ----------
+  onionBtn.addEventListener('pointerdown', () => { showOnion = true; render(); });
+  onionBtn.addEventListener('pointerup', () => { showOnion = false; render(); });
+  onionBtn.addEventListener('pointerleave', () => { showOnion = false; render(); });
+  onionAlwaysCheck.addEventListener('change', render);
+
+  // ---------- frames ----------
+  function renderFrameStrip(){
+    frameStrip.innerHTML = '';
+    frames.forEach((data, idx) => {
+      const thumb = document.createElement('div');
+      thumb.className = 'frame-thumb' + (idx === currentFrame ? ' active' : '');
+      const tz = W<=32 ? 2.5 : 1.5;
+      const c = document.createElement('canvas');
+      c.width = W*tz; c.height = H*tz;
+      const cctx = c.getContext('2d');
+      cctx.imageSmoothingEnabled = false;
+      paintImageDataScaled(cctx, data, W, H, tz);
+      thumb.appendChild(c);
+      const lbl = document.createElement('div');
+      lbl.className = 'idx';
+      lbl.textContent = '#' + (idx+1);
+      thumb.appendChild(lbl);
+      thumb.addEventListener('click', () => { commitSelectionIfAny(); currentFrame = idx; renderFrameStrip(); render(); });
+      if (frames.length > 1) {
+        const del = document.createElement('div');
+        del.className = 'del';
+        del.textContent = '×';
+        del.addEventListener('click', (e) => {
+          e.stopPropagation();
+          frames.splice(idx, 1);
+          if (currentFrame >= frames.length) currentFrame = frames.length - 1;
+          renderFrameStrip(); render();
+        });
+        thumb.appendChild(del);
+      }
+      frameStrip.appendChild(thumb);
+    });
+  }
+  function paintImageDataScaled(ctx, data, w, h, z){
+    ctx.clearRect(0,0,w*z,h*z);
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+      const i=(y*w+x)*4;
+      if (data[i+3]===0) continue;
+      ctx.fillStyle = `rgba(${data[i]},${data[i+1]},${data[i+2]},${data[i+3]/255})`;
+      ctx.fillRect(x*z,y*z,z,z);
+    }
+  }
+
+  newFrameBtn.addEventListener('click', () => {
+    commitSelectionIfAny();
+    frames.splice(currentFrame+1, 0, new Uint8ClampedArray(W*H*4));
+    currentFrame++;
+    renderFrameStrip(); render();
+    setStatus('Frame nuevo (en blanco) agregado.');
+  });
+  dupFrameBtn.addEventListener('click', () => {
+    commitSelectionIfAny();
+    frames.splice(currentFrame+1, 0, new Uint8ClampedArray(frames[currentFrame]));
+    currentFrame++;
+    renderFrameStrip(); render();
+    setStatus('Frame duplicado — ajustá lo que cambia respecto al anterior.');
+  });
+
+  // ---------- drawing / painting ----------
+  function cellFromEvent(e){
+    const rect = drawCanvas.getBoundingClientRect();
+    const scaleX = drawCanvas.width / rect.width;
+    const scaleY = drawCanvas.height / rect.height;
+    const x = Math.floor((e.clientX - rect.left) * scaleX / zoom);
+    const y = Math.floor((e.clientY - rect.top) * scaleY / zoom);
+    return { x, y };
+  }
+
+  function paintCell(x, y){
+    if (x<0||x>=W||y<0||y>=H) return;
+    const data = frames[currentFrame];
+    const i = (y*W+x)*4;
+    if (tool === 'eraser' || activeColorIndex === -1) {
+      data[i+3] = 0;
+    } else {
+      const hex = palette[activeColorIndex];
+      const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+      data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=255;
+    }
+  }
+
+  drawCanvas.addEventListener('pointerdown', (e) => {
+    if (moveMode) return;
+    const { x, y } = cellFromEvent(e);
+    if (pendingCenterClick) {
+      pendingCenterClick = false;
+      if (x>=0&&x<W&&y>=0&&y<H) {
+        pushUndo();
+        const targetX = Math.floor(W/2), targetY = Math.floor(H/2);
+        shiftComposition(targetX-x, targetY-y);
+        render();
+        renderFrameStrip();
+        setStatus(`Centrado sobre (${x},${y}) → llevado a (${targetX},${targetY}).`);
+      }
+      return;
+    }
+    if (tool === 'select') {
+      if (selection && pointInSelection(x,y)) {
+        selection.dragging = true;
+        selection.dragStart = { x, y, selX: selection.x, selY: selection.y };
+      } else {
+        commitSelectionIfAny();
+        marquee = { startX:x, startY:y, curX:x, curY:y };
+      }
+      render();
+      return;
+    }
+    if (tool === 'fill') {
+      if (x<0||x>=W||y<0||y>=H) return;
+      pushUndo();
+      const count = floodFill(x, y);
+      render();
+      renderFrameStrip();
+      setStatus(count > 0 ? `Relleno aplicado a ${count} píxel(es).` : 'No había nada que rellenar ahí (mismo color ya).');
+      return;
+    }
+    if (tool.startsWith('shape-')) {
+      marquee = { startX:x, startY:y, curX:x, curY:y };
+      render();
+      return;
+    }
+    painting = true;
+    pushUndo();
+    paintCell(x, y);
+    lastPaintCell = { x, y };
+    render();
+  });
+
+  drawCanvas.addEventListener('pointermove', (e) => {
+    if (moveMode) return;
+    const { x, y } = cellFromEvent(e);
+    if (tool === 'select') {
+      if (marquee) { marquee.curX = x; marquee.curY = y; render(); return; }
+      if (selection && selection.dragging) {
+        const dx = x - selection.dragStart.x, dy = y - selection.dragStart.y;
+        selection.x = selection.dragStart.selX + dx;
+        selection.y = selection.dragStart.selY + dy;
+        render();
+      }
+      return;
+    }
+    if (tool.startsWith('shape-')) {
+      if (marquee) { marquee.curX = x; marquee.curY = y; render(); }
+      return;
+    }
+    if (!painting) return;
+    if (lastPaintCell && lastPaintCell.x === x && lastPaintCell.y === y) return;
+    paintCell(x, y);
+    lastPaintCell = { x, y };
+    render();
+  });
+
+  function finishPointer(){
+    if (tool === 'select') {
+      if (marquee) {
+        const x0 = Math.min(marquee.startX, marquee.curX);
+        const y0 = Math.min(marquee.startY, marquee.curY);
+        const x1 = Math.max(marquee.startX, marquee.curX);
+        const y1 = Math.max(marquee.startY, marquee.curY);
+        const w = x1-x0+1, h = y1-y0+1;
+        marquee = null;
+        if (w>0 && h>0) startSelectionCut(x0,y0,w,h);
+        renderFrameStrip();
+      } else if (selection) {
+        selection.dragging = false;
+      }
+      render();
+      return;
+    }
+    if (tool.startsWith('shape-')) {
+      if (marquee) {
+        pushUndo();
+        stampShape(tool, marquee.startX, marquee.startY, marquee.curX, marquee.curY);
+        marquee = null;
+        render();
+        renderFrameStrip();
+        setStatus('Forma insertada.');
+      }
+      return;
+    }
+    const wasPainting = painting;
+    painting = false;
+    lastPaintCell = null;
+    if (wasPainting) renderFrameStrip();
+  }
+  drawCanvas.addEventListener('pointerup', finishPointer);
+  drawCanvas.addEventListener('pointerleave', finishPointer);
+
+  function pointInSelection(x,y){
+    if (!selection) return false;
+    return x>=selection.x && x<selection.x+selection.w && y>=selection.y && y<selection.y+selection.h;
+  }
+
+  function startSelectionCut(x,y,w,h){
+    x = Math.max(0,x); y = Math.max(0,y);
+    w = Math.min(w, W-x); h = Math.min(h, H-y);
+    if (w<=0||h<=0) return;
+    pushUndo();
+    const data = frames[currentFrame];
+    const buffer = new Uint8ClampedArray(w*h*4);
+    for (let yy=0; yy<h; yy++){
+      for (let xx=0; xx<w; xx++){
+        const srcI = ((y+yy)*W+(x+xx))*4;
+        const dstI = (yy*w+xx)*4;
+        buffer[dstI]=data[srcI]; buffer[dstI+1]=data[srcI+1]; buffer[dstI+2]=data[srcI+2]; buffer[dstI+3]=data[srcI+3];
+        data[srcI]=0; data[srcI+1]=0; data[srcI+2]=0; data[srcI+3]=0;
+      }
+    }
+    selection = { x, y, w, h, buffer, dragging:false };
+    setStatus(`Área recortada (${w}×${h}px) — arrastrala para moverla, o cambiá de herramienta para soltarla.`);
+  }
+
+  function commitSelectionIfAny(){
+    if (!selection) return;
+    const data = frames[currentFrame];
+    const { x, y, w, h, buffer } = selection;
+    for (let yy=0; yy<h; yy++){
+      for (let xx=0; xx<w; xx++){
+        const dx = x+xx, dy = y+yy;
+        if (dx<0||dx>=W||dy<0||dy>=H) continue;
+        const dstI = (dy*W+dx)*4;
+        const srcI = (yy*w+xx)*4;
+        data[dstI]=buffer[srcI]; data[dstI+1]=buffer[srcI+1]; data[dstI+2]=buffer[srcI+2]; data[dstI+3]=buffer[srcI+3];
+      }
+    }
+    selection = null;
+    renderFrameStrip();
+    render();
+  }
+
+  function shiftComposition(dx, dy){
+    const data = frames[currentFrame];
+    const out = new Uint8ClampedArray(data.length);
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+      const srcIdx=(y*W+x)*4;
+      if (data[srcIdx+3]===0) continue;
+      const nx=x+dx, ny=y+dy;
+      if (nx<0||nx>=W||ny<0||ny>=H) continue;
+      const dstIdx=(ny*W+nx)*4;
+      out[dstIdx]=data[srcIdx]; out[dstIdx+1]=data[srcIdx+1]; out[dstIdx+2]=data[srcIdx+2]; out[dstIdx+3]=data[srcIdx+3];
+    }
+    frames[currentFrame] = out;
+  }
+
+  // ---------- flip / rotate / fill / shapes ----------
+  function flipHBuffer(data, w, h){
+    const out = new Uint8ClampedArray(data.length);
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+      const srcI=(y*w+x)*4, dstI=(y*w+(w-1-x))*4;
+      out[dstI]=data[srcI]; out[dstI+1]=data[srcI+1]; out[dstI+2]=data[srcI+2]; out[dstI+3]=data[srcI+3];
+    }
+    return out;
+  }
+  function flipVBuffer(data, w, h){
+    const out = new Uint8ClampedArray(data.length);
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+      const srcI=(y*w+x)*4, dstI=((h-1-y)*w+x)*4;
+      out[dstI]=data[srcI]; out[dstI+1]=data[srcI+1]; out[dstI+2]=data[srcI+2]; out[dstI+3]=data[srcI+3];
+    }
+    return out;
+  }
+  // Lossless 90° rotation that swaps width/height — safe for a floating
+  // selection buffer (its own bounds are free to change), not for a whole
+  // frame whose dimensions are shared across the entire animation.
+  function rotate90Swap(data, w, h){
+    const out = new Uint8ClampedArray(data.length);
+    const newW = h, newH = w;
+    for (let sy=0; sy<h; sy++){
+      for (let sx=0; sx<w; sx++){
+        const dx = h-1-sy, dy = sx;
+        const srcI=(sy*w+sx)*4, dstI=(dy*newW+dx)*4;
+        out[dstI]=data[srcI]; out[dstI+1]=data[srcI+1]; out[dstI+2]=data[srcI+2]; out[dstI+3]=data[srcI+3];
+      }
+    }
+    return { data: out, w: newW, h: newH };
+  }
+  // Arbitrary-angle rotation around the buffer's own center, nearest-neighbor
+  // sampling (keeps hard pixel edges — no blending/anti-aliasing), clipped to
+  // the SAME w×h bounds. Used for 45°/30°, and as the non-square-frame
+  // fallback for 90° (where a true dimension swap isn't possible).
+  function rotateArbitrary(data, w, h, angleDeg){
+    const rad = angleDeg * Math.PI/180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const cx = w/2, cy = h/2;
+    const out = new Uint8ClampedArray(data.length);
+    for (let dy=0; dy<h; dy++){
+      for (let dx=0; dx<w; dx++){
+        const relX = dx+0.5-cx, relY = dy+0.5-cy;
+        const srcX = cos*relX + sin*relY + cx - 0.5;
+        const srcY = -sin*relX + cos*relY + cy - 0.5;
+        const sx = Math.round(srcX), sy = Math.round(srcY);
+        if (sx<0||sx>=w||sy<0||sy>=h) continue;
+        const srcI=(sy*w+sx)*4, dstI=(dy*w+dx)*4;
+        out[dstI]=data[srcI]; out[dstI+1]=data[srcI+1]; out[dstI+2]=data[srcI+2]; out[dstI+3]=data[srcI+3];
+      }
+    }
+    return out;
+  }
+
+  function applyBufferOp(kind, angleDeg){
+    // Operates on the active selection's floating buffer if one exists,
+    // otherwise on the whole current frame. Undo: a selection's own cut
+    // already pushed an undo snapshot, so transforming it doesn't push
+    // another (it's all one continuous move); a whole-frame op pushes its own.
+    if (selection) {
+      if (kind === 'flipH') selection.buffer = flipHBuffer(selection.buffer, selection.w, selection.h);
+      else if (kind === 'flipV') selection.buffer = flipVBuffer(selection.buffer, selection.w, selection.h);
+      else if (kind === 'rotate90') {
+        const r = rotate90Swap(selection.buffer, selection.w, selection.h);
+        // keep the selection's center anchored while its bounding box resizes
+        const cx = selection.x + selection.w/2, cy = selection.y + selection.h/2;
+        selection.buffer = r.data; selection.w = r.w; selection.h = r.h;
+        selection.x = Math.round(cx - r.w/2); selection.y = Math.round(cy - r.h/2);
+      }
+      else selection.buffer = rotateArbitrary(selection.buffer, selection.w, selection.h, angleDeg);
+      render();
+      setStatus('Transformación aplicada a la selección — se confirma al cambiar de herramienta.');
+      return;
+    }
+    pushUndo();
+    const data = frames[currentFrame];
+    if (kind === 'flipH') frames[currentFrame] = flipHBuffer(data, W, H);
+    else if (kind === 'flipV') frames[currentFrame] = flipVBuffer(data, W, H);
+    else if (kind === 'rotate90') {
+      if (W === H) {
+        const r = rotate90Swap(data, W, H);
+        frames[currentFrame] = r.data; // W===H so dimensions stay valid
+      } else {
+        frames[currentFrame] = rotateArbitrary(data, W, H, 90);
+        setStatus('Lienzo no cuadrado: la rotación de 90° recortó lo que no entraba en el ancho/alto original.');
+      }
+    } else {
+      frames[currentFrame] = rotateArbitrary(data, W, H, angleDeg);
+      setStatus(`Rotación de ${angleDeg}° aplicada (aproximada — puede necesitar retoque manual en los bordes).`);
+    }
+    render();
+    renderFrameStrip();
+  }
+
+  flipHBtn.addEventListener('click', () => applyBufferOp('flipH'));
+  flipVBtn.addEventListener('click', () => applyBufferOp('flipV'));
+  rotate90Btn.addEventListener('click', () => applyBufferOp('rotate90'));
+  rotate45Btn.addEventListener('click', () => applyBufferOp('rotate', 45));
+  rotate30Btn.addEventListener('click', () => applyBufferOp('rotate', 30));
+
+  function floodFill(startX, startY){
+    const data = frames[currentFrame];
+    const idx = (startY*W+startX)*4;
+    const tr=data[idx], tg=data[idx+1], tb=data[idx+2], ta=data[idx+3];
+    let nr,ng,nb,na;
+    if (activeColorIndex === -1) { nr=0; ng=0; nb=0; na=0; }
+    else {
+      const hex = palette[activeColorIndex];
+      nr=parseInt(hex.slice(1,3),16); ng=parseInt(hex.slice(3,5),16); nb=parseInt(hex.slice(5,7),16); na=255;
+    }
+    if (tr===nr && tg===ng && tb===nb && ta===na) return 0;
+    const stack=[[startX,startY]];
+    const visited = new Uint8Array(W*H);
+    let count=0;
+    while(stack.length){
+      const [x,y] = stack.pop();
+      if (x<0||x>=W||y<0||y>=H) continue;
+      const vi = y*W+x;
+      if (visited[vi]) continue;
+      const i = vi*4;
+      if (data[i]!==tr||data[i+1]!==tg||data[i+2]!==tb||data[i+3]!==ta) continue;
+      visited[vi]=1;
+      data[i]=nr; data[i+1]=ng; data[i+2]=nb; data[i+3]=na;
+      count++;
+      stack.push([x+1,y],[x-1,y],[x,y+1],[x,y-1]);
+    }
+    return count;
+  }
+
+  function stampShape(shapeType, x0,y0,x1,y1){
+    const xMin=Math.max(0,Math.min(x0,x1)), xMax=Math.min(W-1,Math.max(x0,x1));
+    const yMin=Math.max(0,Math.min(y0,y1)), yMax=Math.min(H-1,Math.max(y0,y1));
+    if (xMax<xMin || yMax<yMin) return;
+    const data = frames[currentFrame];
+    let r,g,b,a;
+    if (activeColorIndex === -1) { r=0; g=0; b=0; a=0; }
+    else {
+      const hex = palette[activeColorIndex];
+      r=parseInt(hex.slice(1,3),16); g=parseInt(hex.slice(3,5),16); b=parseInt(hex.slice(5,7),16); a=255;
+    }
+    const bw = xMax-xMin+1, bh = yMax-yMin+1;
+    const cx=(xMin+xMax)/2, cy=(yMin+yMax)/2;
+    const rx=bw/2, ry=bh/2;
+    const midX=(xMin+xMax+1)/2;
+    for (let y=yMin;y<=yMax;y++){
+      for (let x=xMin;x<=xMax;x++){
+        let inside=false;
+        if (shapeType==='shape-square') inside=true;
+        else if (shapeType==='shape-circle'){
+          const nx=(x+0.5-cx)/(rx||1), ny=(y+0.5-cy)/(ry||1);
+          inside = (nx*nx+ny*ny)<=1;
+        } else if (shapeType==='shape-triangle'){
+          const rowFrac=(y-yMin+0.5)/bh;
+          const halfW = rowFrac*(bw/2);
+          inside = Math.abs((x+0.5)-midX) <= halfW;
+        }
+        if (inside){
+          const i=(y*W+x)*4;
+          data[i]=r; data[i+1]=g; data[i+2]=b; data[i+3]=a;
+        }
+      }
+    }
+  }
+
+  toolFill.addEventListener('click', () => { commitSelectionIfAny(); tool='fill'; setToolUI(); });
+  shapeCircleBtn.addEventListener('click', () => { commitSelectionIfAny(); tool='shape-circle'; setToolUI(); });
+  shapeSquareBtn.addEventListener('click', () => { commitSelectionIfAny(); tool='shape-square'; setToolUI(); });
+  shapeTriangleBtn.addEventListener('click', () => { commitSelectionIfAny(); tool='shape-triangle'; setToolUI(); });
+
+  // ---------- render ----------
+  function render(){
+    const ctx = drawCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+
+    const wantOnion = (showOnion || onionAlwaysCheck.checked) && currentFrame > 0;
+    if (wantOnion) {
+      const prev = frames[currentFrame-1];
+      for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+        const i=(y*W+x)*4;
+        if (prev[i+3]===0) continue;
+        ctx.fillStyle = `rgba(${prev[i]},${prev[i+1]},${prev[i+2]},${(prev[i+3]/255)*0.35})`;
+        ctx.fillRect(x*zoom,y*zoom,zoom,zoom);
+      }
+    }
+
+    const data = frames[currentFrame];
+    for (let y=0;y<H;y++) for (let x=0;x<W;x++){
+      const i=(y*W+x)*4;
+      if (data[i+3]===0) continue;
+      ctx.fillStyle = `rgba(${data[i]},${data[i+1]},${data[i+2]},${data[i+3]/255})`;
+      ctx.fillRect(x*zoom,y*zoom,zoom,zoom);
+    }
+
+    if (selection) {
+      const { x, y, w, h, buffer } = selection;
+      for (let yy=0; yy<h; yy++){
+        for (let xx=0; xx<w; xx++){
+          const dx=x+xx, dy=y+yy;
+          if (dx<0||dx>=W||dy<0||dy>=H) continue;
+          const i=(yy*w+xx)*4;
+          if (buffer[i+3]===0) continue;
+          ctx.fillStyle = `rgba(${buffer[i]},${buffer[i+1]},${buffer[i+2]},${buffer[i+3]/255})`;
+          ctx.fillRect(dx*zoom,dy*zoom,zoom,zoom);
+        }
+      }
+      ctx.strokeStyle = 'rgba(57,255,154,0.9)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,3]);
+      ctx.strokeRect(x*zoom, y*zoom, w*zoom, h*zoom);
+      ctx.setLineDash([]);
+    }
+    if (marquee) {
+      const x0 = Math.min(marquee.startX, marquee.curX), y0 = Math.min(marquee.startY, marquee.curY);
+      const x1 = Math.max(marquee.startX, marquee.curX), y1 = Math.max(marquee.startY, marquee.curY);
+      ctx.strokeStyle = 'rgba(255,176,59,0.9)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,2]);
+      ctx.strokeRect(x0*zoom, y0*zoom, (x1-x0+1)*zoom, (y1-y0+1)*zoom);
+      ctx.setLineDash([]);
+    }
+  }
+
+  // ---------- export ----------
+  function frameToPngBytes(data){
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(data), W, H), 0, 0);
+    const dataUrl = c.toDataURL('image/png');
+    const b64 = dataUrl.split(',')[1];
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  exportCurrentBtn.addEventListener('click', () => {
+    commitSelectionIfAny();
+    const bytes = frameToPngBytes(frames[currentFrame]);
+    const blob = new Blob([bytes], {type:'image/png'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `frame_${String(currentFrame+1).padStart(2,'0')}.png`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  exportAllBtn.addEventListener('click', () => {
+    commitSelectionIfAny();
+    const files = frames.map((data, idx) => ({
+      name: `frame_${String(idx+1).padStart(2,'0')}.png`,
+      data: frameToPngBytes(data)
+    }));
+    const zipBytes = makeZip(files);
+    const blob = new Blob([zipBytes], {type:'application/zip'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'frames.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus(`Exportados ${files.length} frame(s) en frames.zip`);
+  });
+
+  // ---------- floating controls toggle ----------
+  toggleControlsBtn.addEventListener('click', () => {
+    controlsPanel.classList.toggle('hidden');
+  });
+
+  // ---------- palette JSON export / import (edit screen — palette only) ----------
+  exportPaletteBtnEdit.addEventListener('click', () => {
+    downloadJson({ palette, width: W, height: H }, 'paleta.json');
+  });
+  importPaletteBtnEdit.addEventListener('click', () => importPaletteFileEdit.click());
+  importPaletteFileEdit.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (!Array.isArray(obj.palette) || obj.palette.length === 0) throw new Error('El JSON no tiene un array "palette" válido.');
+        palette = obj.palette.slice(0, 32);
+        if (activeColorIndex >= palette.length) activeColorIndex = 0;
+        renderPaletteRow();
+        setStatus(`Paleta importada (${palette.length} color(es)). El tamaño de grilla del archivo no se aplica en una sesión ya iniciada.`);
+      } catch(err) {
+        setStatus('No se pudo leer el JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+    importPaletteFileEdit.value = '';
+  });
+
+  // ---------- zoom control (only shown in move mode) ----------
+  function bitmapPointAtViewportCenter(){
+    const viewW = canvasScrollArea.clientWidth, viewH = canvasScrollArea.clientHeight;
+    const wrapPadX = viewW/2 + 10, wrapPadY = viewH/2 + 10; // 50vw/50vh + canvas-wrap's own 10px padding
+    const bx = (canvasScrollArea.scrollLeft + viewW/2 - wrapPadX) / zoom;
+    const by = (canvasScrollArea.scrollTop + viewH/2 - wrapPadY) / zoom;
+    return { bx, by };
+  }
+  function scrollToBitmapPointAtCenter(bx, by){
+    const viewW = canvasScrollArea.clientWidth, viewH = canvasScrollArea.clientHeight;
+    const wrapPadX = viewW/2 + 10, wrapPadY = viewH/2 + 10;
+    canvasScrollArea.scrollLeft = wrapPadX + bx*zoom - viewW/2;
+    canvasScrollArea.scrollTop = wrapPadY + by*zoom - viewH/2;
+  }
+  function setZoom(newZoom){
+    newZoom = Math.max(2, Math.min(64, newZoom));
+    if (newZoom === zoom) return;
+    const center = bitmapPointAtViewportCenter();
+    zoom = newZoom;
+    drawCanvas.width = W*zoom;
+    drawCanvas.height = H*zoom;
+    render();
+    zoomReadout.textContent = zoom + 'x';
+    requestAnimationFrame(() => scrollToBitmapPointAtCenter(center.bx, center.by));
+  }
+  zoomInBtn.addEventListener('click', () => setZoom(zoom + 2));
+  zoomOutBtn.addEventListener('click', () => setZoom(zoom - 2));
+
+  // ---------- move / pan mode ----------
+  let panDrag = null; // { startX, startY, startScrollLeft, startScrollTop }
+
+  moveBtn.addEventListener('click', () => {
+    moveMode = !moveMode;
+    if (moveMode) {
+      commitSelectionIfAny();
+      moveBtn.textContent = '✎ Continuar edición';
+      canvasScrollArea.classList.add('pan-mode');
+      controlsPanel.classList.add('hidden'); // free up the screen to navigate
+      zoomControl.style.display = 'flex';
+      setStatus('Modo mover activo — arrastrá para desplazarte por el bitmap. Los pinceles están bloqueados.');
+    } else {
+      moveBtn.textContent = '✋ Mover';
+      canvasScrollArea.classList.remove('pan-mode');
+      zoomControl.style.display = 'none';
+      setStatus('Edición normal restaurada.');
+    }
+  });
+
+  canvasScrollArea.addEventListener('pointerdown', (e) => {
+    if (!moveMode) return;
+    if (e.pointerType !== 'mouse') return; // touch/pen use native touch-action panning
+    panDrag = {
+      startX: e.clientX, startY: e.clientY,
+      startScrollLeft: canvasScrollArea.scrollLeft, startScrollTop: canvasScrollArea.scrollTop
+    };
+    canvasScrollArea.classList.add('grabbing');
+  });
+  canvasScrollArea.addEventListener('pointermove', (e) => {
+    if (!moveMode || !panDrag) return;
+    const dx = e.clientX - panDrag.startX;
+    const dy = e.clientY - panDrag.startY;
+    canvasScrollArea.scrollLeft = panDrag.startScrollLeft - dx;
+    canvasScrollArea.scrollTop = panDrag.startScrollTop - dy;
+  });
+  function endPanDrag(){
+    panDrag = null;
+    canvasScrollArea.classList.remove('grabbing');
+  }
+  canvasScrollArea.addEventListener('pointerup', endPanDrag);
+  canvasScrollArea.addEventListener('pointerleave', endPanDrag);
+
+})();
+</script>
+
+</body>
+</html>

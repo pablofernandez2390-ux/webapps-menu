@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Atlas Designer</title>
+<style>
+  :root{
+    --bg: #0a0f0d;
+    --panel: #111917;
+    --line: #1e2b27;
+    --neon: #39ff9a;
+    --neon-dim: #1f8a5c;
+    --text: #d8f5e6;
+    --muted: #6d8c7f;
+    --danger: #ff5f6d;
+    --warn: #ffb03b;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Courier New", Consolas, monospace;
+    padding: 24px 16px 60px;
+  }
+  h1{
+    font-size: 20px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 8px rgba(57,255,154,0.45);
+    margin: 0 0 4px;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 22px;
+    line-height: 1.6;
+  }
+  .toprow{
+    display:flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 14px 16px; margin-bottom: 18px;
+  }
+  label{
+    display:block;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input[type=number], input[type=text]{
+    background: #05100b;
+    border: 1px solid var(--line);
+    color: var(--neon);
+    padding: 7px 8px;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 2px;
+  }
+  input[type=text]{ color: var(--text); width: 100%; }
+  input[type=file]{ display:none; }
+  .field{ min-width: 140px; }
+  .readonly{
+    background: #05100b; border: 1px solid var(--line); color: var(--muted);
+    padding: 7px 8px; font-size: 13px; border-radius: 2px; min-width: 110px;
+  }
+  button{
+    background: var(--neon);
+    color: #05100b;
+    border: none;
+    font-family: inherit;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 9px 14px;
+    font-size: 11px;
+    border-radius: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover{ background:#7dffbd; }
+  button:disabled{ background: var(--neon-dim); cursor: not-allowed; }
+  button.secondary{
+    background: transparent;
+    color: var(--neon);
+    border: 1px solid var(--neon-dim);
+  }
+  button.secondary:hover{ background: rgba(57,255,154,0.08); }
+  button.danger{ background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+  button.danger:hover{ background: rgba(255,95,109,0.1); }
+  button.tiny{ padding: 4px 8px; font-size: 10px; }
+
+  .anim-card{
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 14px 16px; margin-bottom: 14px;
+  }
+  .anim-card.warn{ border-color: var(--warn); }
+  .anim-head{
+    display:flex; gap: 10px; align-items:center; margin-bottom: 12px;
+  }
+  .anim-head input[type=text]{ flex:1; }
+  .frame-strip{
+    display:flex; gap: 8px; flex-wrap: wrap; min-height: 90px;
+    background: #05100b; border: 1px solid var(--line); border-radius: 3px; padding: 8px;
+  }
+  .frame-strip.empty::after{
+    content: "Sin frames — usá \"Cargar frames\" para importar imágenes.";
+    color: var(--muted); font-size: 11px; align-self:center;
+  }
+  .frame-thumb{
+    position:relative;
+    background: repeating-conic-gradient(#14211c 0% 25%, #0a1310 0% 50%) 50% / 10px 10px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 4px;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+  }
+  .frame-thumb.mismatch{ border-color: var(--warn); }
+  .frame-thumb canvas{ image-rendering: pixelated; display:block; }
+  .frame-thumb .idx{ font-size: 9px; color: var(--muted); }
+  .frame-thumb .ctrls{ display:flex; gap:2px; }
+  .frame-thumb .warn-badge{
+    position:absolute; top:-6px; right:-6px; background: var(--warn); color:#1a1200;
+    font-size: 9px; font-weight:bold; border-radius: 50%; width:16px; height:16px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .add-anim-btn{ width: 100%; padding: 12px; margin-bottom: 22px; }
+
+  .status{ font-size: 12px; color: var(--muted); margin: 10px 0; min-height: 16px; }
+  .status.err{ color: var(--danger); }
+
+  .panel-title{
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+  }
+  .preview-wrap{
+    background-image:
+      linear-gradient(45deg, #14211c 25%, transparent 25%),
+      linear-gradient(-45deg, #14211c 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #14211c 75%),
+      linear-gradient(-45deg, transparent 75%, #14211c 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #0a1310;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display: inline-block;
+    padding: 10px;
+    max-width: 100%;
+    overflow: auto;
+  }
+  #previewCanvas{ image-rendering: pixelated; display:block; }
+</style>
+</head>
+<body>
+
+<h1>Atlas Designer</h1>
+<p class="sub">
+  Organizá cada animación como una secuencia de frames ya dibujados como pixel art real
+  (uno por archivo). La herramienta solo los ordena y empaqueta — no cuantiza ni reescala
+  nada, porque el arte ya viene resuelto.
+</p>
+
+<div class="toprow">
+  <div class="field">
+    <label>Tamaño de celda detectado</label>
+    <div class="readonly" id="cellSizeReadout">— (cargá el primer frame)</div>
+  </div>
+  <div class="field">
+    <label>Espacio entre celdas (px)</label>
+    <input type="number" id="gutterInput" value="2" min="0" max="16" style="width:100%">
+  </div>
+  <div style="flex:1"></div>
+  <button id="exportBtn" disabled>Exportar atlas</button>
+</div>
+
+<div class="status" id="status"></div>
+
+<div id="animList"></div>
+
+<button class="secondary add-anim-btn" id="addAnimBtn">+ Añadir animación</button>
+
+<div>
+  <div class="panel-title">Vista previa del atlas</div>
+  <div class="preview-wrap">
+    <canvas id="previewCanvas" width="1" height="1"></canvas>
+  </div>
+</div>
+
+<canvas id="scratchCanvas" style="display:none"></canvas>
+
+<script>
+(function(){
+  const gutterInput = document.getElementById('gutterInput');
+  const cellSizeReadout = document.getElementById('cellSizeReadout');
+  const exportBtn = document.getElementById('exportBtn');
+  const statusEl = document.getElementById('status');
+  const animList = document.getElementById('animList');
+  const addAnimBtn = document.getElementById('addAnimBtn');
+  const previewCanvas = document.getElementById('previewCanvas');
+  const scratchCanvas = document.getElementById('scratchCanvas');
+
+  let animations = []; // { name, frames: [ {img, w, h, mismatch} ] }
+  let cellSize = null; // established by the first frame loaded, across the whole atlas
+  let animCounter = 0;
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (isErr ? ' err' : '');
+  }
+
+  function totalFrameCount(){
+    return animations.reduce((sum, a) => sum + a.frames.length, 0);
+  }
+
+  function addAnimation(){
+    animCounter++;
+    animations.push({ name: `Animación ${animCounter}`, frames: [] });
+    renderAll();
+  }
+
+  function removeAnimation(anim){
+    animations = animations.filter(a => a !== anim);
+    renderAll();
+  }
+
+  function loadFilesIntoAnimation(anim, fileList){
+    const files = Array.from(fileList);
+    if (files.length === 0) return;
+    // Reserve ordered slots up front — image decoding is async and can finish in
+    // any order, so we place each frame at its original selection index rather
+    // than appending on completion (which would silently scramble the sequence).
+    const startIndex = anim.frames.length;
+    const slots = new Array(files.length).fill(null);
+    let pending = files.length;
+
+    files.forEach((file, i) => {
+      const img = new Image();
+      img.onload = () => {
+        slots[i] = { img, w: img.width, h: img.height };
+        pending--;
+        if (pending === 0) finalize();
+      };
+      img.onerror = () => {
+        slots[i] = { failed: true, name: file.name };
+        pending--;
+        if (pending === 0) finalize();
+      };
+      img.src = URL.createObjectURL(file);
+    });
+
+    function finalize(){
+      const failed = slots.filter(s => s && s.failed);
+      const ok = slots.filter(s => s && !s.failed);
+      // Establish cellSize from the first file of this selection, in the order
+      // it was picked — not from whichever image happened to decode first.
+      if (cellSize === null && ok.length > 0) {
+        cellSize = Math.max(ok[0].w, ok[0].h);
+        cellSizeReadout.textContent = `${cellSize}×${cellSize}px (fijado por el primer frame)`;
+      }
+      ok.forEach(s => { s.mismatch = (s.w !== cellSize || s.h !== cellSize); });
+      anim.frames.splice(startIndex, 0, ...ok);
+      if (failed.length > 0) {
+        setStatus(`No se pudo leer ${failed.length} archivo(s): ${failed.map(f => f.name).join(', ')}`, true);
+      }
+      renderAll();
+    }
+  }
+
+  function moveFrame(anim, index, dir){
+    const j = index + dir;
+    if (j < 0 || j >= anim.frames.length) return;
+    const tmp = anim.frames[index];
+    anim.frames[index] = anim.frames[j];
+    anim.frames[j] = tmp;
+    renderAll();
+  }
+
+  function removeFrame(anim, index){
+    anim.frames.splice(index, 1);
+    renderAll();
+  }
+
+  function drawThumb(canvas, frame){
+    const zoom = frame.w <= 32 ? 3 : (frame.w <= 64 ? 2 : 1);
+    canvas.width = frame.w * zoom;
+    canvas.height = frame.h * zoom;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(frame.img, 0, 0, canvas.width, canvas.height);
+  }
+
+  function renderAnimCard(anim){
+    const card = document.createElement('div');
+    const hasMismatch = anim.frames.some(f => f.mismatch);
+    card.className = 'anim-card' + (hasMismatch ? ' warn' : '');
+
+    const head = document.createElement('div');
+    head.className = 'anim-head';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = anim.name;
+    nameInput.addEventListener('input', () => { anim.name = nameInput.value; });
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'secondary';
+    loadBtn.textContent = 'Cargar frames';
+    const hiddenFileInput = document.createElement('input');
+    hiddenFileInput.type = 'file';
+    hiddenFileInput.accept = 'image/*';
+    hiddenFileInput.multiple = true;
+    hiddenFileInput.addEventListener('change', (e) => {
+      loadFilesIntoAnimation(anim, e.target.files);
+      hiddenFileInput.value = '';
+    });
+    loadBtn.addEventListener('click', () => hiddenFileInput.click());
+
+    const removeAnimBtn = document.createElement('button');
+    removeAnimBtn.className = 'danger';
+    removeAnimBtn.textContent = 'Eliminar animación';
+    removeAnimBtn.addEventListener('click', () => removeAnimation(anim));
+
+    const countBadge = document.createElement('div');
+    countBadge.style.fontSize = '10px';
+    countBadge.style.color = 'var(--muted)';
+    countBadge.textContent = anim.frames.length + ' frame(s)';
+
+    head.appendChild(nameInput);
+    head.appendChild(countBadge);
+    head.appendChild(loadBtn);
+    head.appendChild(hiddenFileInput);
+    head.appendChild(removeAnimBtn);
+    card.appendChild(head);
+
+    const strip = document.createElement('div');
+    strip.className = 'frame-strip' + (anim.frames.length === 0 ? ' empty' : '');
+
+    anim.frames.forEach((frame, idx) => {
+      const thumb = document.createElement('div');
+      thumb.className = 'frame-thumb' + (frame.mismatch ? ' mismatch' : '');
+
+      if (frame.mismatch) {
+        const badge = document.createElement('div');
+        badge.className = 'warn-badge';
+        badge.textContent = '!';
+        const biggerThanCell = frame.w > cellSize || frame.h > cellSize;
+        badge.title = biggerThanCell
+          ? `Tamaño ${frame.w}×${frame.h}px — más grande que la celda ${cellSize}×${cellSize}px. Se centrará y el excedente se RECORTARÁ al exportar.`
+          : `Tamaño ${frame.w}×${frame.h}px — no coincide con la celda ${cellSize}×${cellSize}px. Se centrará con relleno transparente al exportar.`;
+        thumb.appendChild(badge);
+      }
+
+      const canvas = document.createElement('canvas');
+      drawThumb(canvas, frame);
+      thumb.appendChild(canvas);
+
+      const idxLabel = document.createElement('div');
+      idxLabel.className = 'idx';
+      idxLabel.textContent = `#${idx + 1}`;
+      thumb.appendChild(idxLabel);
+
+      const ctrls = document.createElement('div');
+      ctrls.className = 'ctrls';
+      const leftBtn = document.createElement('button');
+      leftBtn.className = 'tiny secondary';
+      leftBtn.textContent = '◀';
+      leftBtn.disabled = idx === 0;
+      leftBtn.addEventListener('click', () => moveFrame(anim, idx, -1));
+      const editBtn = document.createElement('button');
+      editBtn.className = 'tiny secondary';
+      editBtn.textContent = '✎';
+      editBtn.title = 'Editar frame';
+      editBtn.addEventListener('click', () => openFrameEditor(anim, idx));
+      const delBtn = document.createElement('button');
+      delBtn.className = 'tiny danger';
+      delBtn.textContent = '×';
+      delBtn.addEventListener('click', () => removeFrame(anim, idx));
+      const rightBtn = document.createElement('button');
+      rightBtn.className = 'tiny secondary';
+      rightBtn.textContent = '▶';
+      rightBtn.disabled = idx === anim.frames.length - 1;
+      rightBtn.addEventListener('click', () => moveFrame(anim, idx, 1));
+      ctrls.appendChild(leftBtn);
+      ctrls.appendChild(editBtn);
+      ctrls.appendChild(delBtn);
+      ctrls.appendChild(rightBtn);
+      thumb.appendChild(ctrls);
+
+      strip.appendChild(thumb);
+    });
+
+    card.appendChild(strip);
+    return card;
+  }
+
+  function renderAll(){
+    animList.innerHTML = '';
+    animations.forEach(anim => animList.appendChild(renderAnimCard(anim)));
+
+    const frames = totalFrameCount();
+    const mismatches = animations.reduce((n, a) => n + a.frames.filter(f => f.mismatch).length, 0);
+    exportBtn.disabled = frames === 0;
+
+    if (frames === 0) {
+      setStatus(animations.length === 0 ? 'Añadí una animación para empezar.' : 'Cargá frames en al menos una animación.', false);
+    } else if (mismatches > 0) {
+      setStatus(`${animations.length} animación(es), ${frames} frame(s) totales. ⚠ ${mismatches} frame(s) con tamaño distinto al de la celda (${cellSize}×${cellSize}px) — se centran con relleno transparente al exportar.`, true);
+    } else {
+      setStatus(`${animations.length} animación(es), ${frames} frame(s) totales. Celda ${cellSize}×${cellSize}px.`, false);
+    }
+
+    renderPreview();
+  }
+
+  function buildAtlas(){
+    const gutter = Math.max(0, parseInt(gutterInput.value, 10) || 0);
+    const rows = animations.filter(a => a.frames.length > 0);
+    const maxCols = Math.max(0, ...rows.map(a => a.frames.length));
+    if (cellSize === null || rows.length === 0 || maxCols === 0) return null;
+
+    const pitch = cellSize + gutter;
+    const atlasW = maxCols * pitch + gutter;
+    const atlasH = rows.length * pitch + gutter;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = atlasW;
+    canvas.height = atlasH;
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, atlasW, atlasH);
+
+    rows.forEach((anim, r) => {
+      anim.frames.forEach((frame, c) => {
+        const dx = gutter + c * pitch;
+        const dy = gutter + r * pitch;
+        if (frame.mismatch) {
+          // Route through a cell-sized intermediate canvas so an oversized frame
+          // gets naturally clipped to the cell bounds instead of bleeding into
+          // the gutter or the neighboring cell. Undersized frames just sit
+          // centered with transparent padding, no clipping needed.
+          const cellCanvas = document.createElement('canvas');
+          cellCanvas.width = cellSize;
+          cellCanvas.height = cellSize;
+          const cctx = cellCanvas.getContext('2d');
+          cctx.imageSmoothingEnabled = false;
+          const offX = Math.round((cellSize - frame.w) / 2);
+          const offY = Math.round((cellSize - frame.h) / 2);
+          cctx.drawImage(frame.img, offX, offY, frame.w, frame.h);
+          ctx.drawImage(cellCanvas, dx, dy);
+        } else {
+          ctx.drawImage(frame.img, dx, dy, cellSize, cellSize);
+        }
+      });
+    });
+
+    return { canvas, atlasW, atlasH, rows: rows.length, cols: maxCols, gutter };
+  }
+
+  function renderPreview(){
+    const built = buildAtlas();
+    if (!built) {
+      previewCanvas.width = 1; previewCanvas.height = 1;
+      previewCanvas.getContext('2d').clearRect(0,0,1,1);
+      return;
+    }
+    const zoom = built.atlasW < 260 ? 4 : (built.atlasW < 520 ? 2 : 1);
+    previewCanvas.width = built.atlasW * zoom;
+    previewCanvas.height = built.atlasH * zoom;
+    const ctx = previewCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0,0,previewCanvas.width, previewCanvas.height);
+    ctx.drawImage(built.canvas, 0, 0, built.atlasW, built.atlasH, 0, 0, previewCanvas.width, previewCanvas.height);
+  }
+
+  addAnimBtn.addEventListener('click', addAnimation);
+  gutterInput.addEventListener('input', renderPreview);
+
+  exportBtn.addEventListener('click', () => {
+    const built = buildAtlas();
+    if (!built) return;
+    built.canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'atlas.png';
+      a.click();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  });
+
+  // start with one empty animation so the UI isn't a blank slate
+  addAnimation();
+
+  window.__renderAllFromEditor = renderAll;
+})();
+</script>
+
+<div id="editorOverlay" style="display:none; position:fixed; inset:0; background:rgba(5,10,8,0.85); z-index:100; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:#111917; border:1px solid #1f8a5c; border-radius:4px; padding:20px; max-width:600px; width:100%; max-height:90vh; overflow:auto;">
+    <div class="panel-title" id="editorTitle" style="border:none; margin-bottom:6px;">Editor de frame</div>
+    <p class="sub" style="margin-bottom:14px;">
+      <strong>Centrar composición:</strong> activá el modo y tocá el píxel que querés que sea el centro —
+      todo el dibujo se desplaza para que ese punto quede exactamente en el medio de la celda.<br>
+      <strong>Barrido de contorno:</strong> borra cualquier píxel opaco que toque el borde o esté a 1px de él.
+    </p>
+    <div style="display:flex; justify-content:center; margin-bottom:14px;">
+      <div class="preview-wrap" style="padding:0;">
+        <canvas id="editorCanvas"></canvas>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+      <button class="secondary" id="centerModeBtn">Modo: centrar composición</button>
+      <button class="secondary" id="sweepBtn">Barrido de contorno (2px)</button>
+      <button class="secondary" id="undoBtn" disabled>Deshacer</button>
+    </div>
+    <div class="status" id="editorStatus"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:14px;">
+      <button class="danger" id="editorCancelBtn">Cancelar</button>
+      <button id="editorSaveBtn">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const overlay = document.getElementById('editorOverlay');
+  const editorTitle = document.getElementById('editorTitle');
+  const editorCanvas = document.getElementById('editorCanvas');
+  const centerModeBtn = document.getElementById('centerModeBtn');
+  const sweepBtn = document.getElementById('sweepBtn');
+  const undoBtn = document.getElementById('undoBtn');
+  const editorStatus = document.getElementById('editorStatus');
+  const editorCancelBtn = document.getElementById('editorCancelBtn');
+  const editorSaveBtn = document.getElementById('editorSaveBtn');
+
+  let editState = null; // { anim, index, w, h, zoom, data (Uint8ClampedArray), undoStack, centerMode }
+
+  window.openFrameEditor = function(anim, index){
+    const frame = anim.frames[index];
+    const w = frame.w, h = frame.h;
+    const zoom = w <= 32 ? 10 : (w <= 64 ? 6 : 3);
+
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    tctx.imageSmoothingEnabled = false;
+    tctx.drawImage(frame.img, 0, 0);
+    const data = tctx.getImageData(0, 0, w, h).data;
+
+    editState = { anim, index, w, h, zoom, data: new Uint8ClampedArray(data), undoStack: [], centerMode: false };
+    editorTitle.textContent = `Editor de frame — ${anim.name} #${index + 1} (${w}×${h}px)`;
+    editorCanvas.width = w * zoom;
+    editorCanvas.height = h * zoom;
+    centerModeBtn.style.background = '';
+    centerModeBtn.style.color = '';
+    undoBtn.disabled = true;
+    editorStatus.textContent = '';
+    drawEditor();
+    overlay.style.display = 'flex';
+  };
+
+  function drawEditor(){
+    const { w, h, zoom, data } = editState;
+    const ctx = editorCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 4;
+        const a = data[i + 3];
+        if (a === 0) continue;
+        ctx.fillStyle = `rgba(${data[i]},${data[i+1]},${data[i+2]},${a/255})`;
+        ctx.fillRect(x * zoom, y * zoom, zoom, zoom);
+      }
+    }
+    ctx.strokeStyle = 'rgba(57,255,154,0.12)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= w; x++) {
+      ctx.beginPath(); ctx.moveTo(x*zoom+0.5, 0); ctx.lineTo(x*zoom+0.5, h*zoom); ctx.stroke();
+    }
+    for (let y = 0; y <= h; y++) {
+      ctx.beginPath(); ctx.moveTo(0, y*zoom+0.5); ctx.lineTo(w*zoom, y*zoom+0.5); ctx.stroke();
+    }
+    const cx = Math.floor(w/2), cy = Math.floor(h/2);
+    ctx.strokeStyle = 'rgba(255,45,140,0.9)';
+    ctx.lineWidth = 2;
+    const px = cx*zoom + zoom/2, py = cy*zoom + zoom/2;
+    ctx.beginPath(); ctx.moveTo(px - zoom*0.8, py); ctx.lineTo(px + zoom*0.8, py); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px, py - zoom*0.8); ctx.lineTo(px, py + zoom*0.8); ctx.stroke();
+  }
+
+  function pushUndo(){
+    editState.undoStack.push(new Uint8ClampedArray(editState.data));
+    if (editState.undoStack.length > 20) editState.undoStack.shift();
+    undoBtn.disabled = false;
+  }
+
+  function shiftComposition(dx, dy){
+    const { w, h, data } = editState;
+    const out = new Uint8ClampedArray(data.length);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const srcIdx = (y*w+x)*4;
+        if (data[srcIdx+3] === 0) continue;
+        const nx = x+dx, ny = y+dy;
+        if (nx<0||nx>=w||ny<0||ny>=h) continue;
+        const dstIdx = (ny*w+nx)*4;
+        out[dstIdx]=data[srcIdx]; out[dstIdx+1]=data[srcIdx+1]; out[dstIdx+2]=data[srcIdx+2]; out[dstIdx+3]=data[srcIdx+3];
+      }
+    }
+    editState.data = out;
+  }
+
+  function sweepBorder(){
+    const { w, h, data } = editState;
+    let cleared = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (x<=1 || x>=w-2 || y<=1 || y>=h-2) {
+          const i = (y*w+x)*4;
+          if (data[i+3] > 0) { data[i+3] = 0; cleared++; }
+        }
+      }
+    }
+    return cleared;
+  }
+
+  centerModeBtn.addEventListener('click', () => {
+    editState.centerMode = !editState.centerMode;
+    if (editState.centerMode) {
+      centerModeBtn.style.background = '#39ff9a';
+      centerModeBtn.style.color = '#05100b';
+      editorStatus.textContent = 'Modo centrar activo — tocá el píxel que querés llevar al centro.';
+      editorStatus.className = 'status';
+    } else {
+      centerModeBtn.style.background = '';
+      centerModeBtn.style.color = '';
+      editorStatus.textContent = '';
+    }
+  });
+
+  editorCanvas.addEventListener('click', (e) => {
+    if (!editState || !editState.centerMode) return;
+    const rect = editorCanvas.getBoundingClientRect();
+    const scaleX = editorCanvas.width / rect.width;
+    const scaleY = editorCanvas.height / rect.height;
+    const px = Math.floor((e.clientX - rect.left) * scaleX / editState.zoom);
+    const py = Math.floor((e.clientY - rect.top) * scaleY / editState.zoom);
+    if (px < 0 || px >= editState.w || py < 0 || py >= editState.h) return;
+
+    pushUndo();
+    const targetX = Math.floor(editState.w / 2);
+    const targetY = Math.floor(editState.h / 2);
+    shiftComposition(targetX - px, targetY - py);
+    drawEditor();
+    editorStatus.textContent = `Centrado sobre (${px},${py}) → desplazado a (${targetX},${targetY}). Podés volver a tocar para ajustar.`;
+    editorStatus.className = 'status';
+  });
+
+  sweepBtn.addEventListener('click', () => {
+    pushUndo();
+    const cleared = sweepBorder();
+    drawEditor();
+    editorStatus.textContent = cleared > 0
+      ? `Barrido completo — se borraron ${cleared} píxel(es) del contorno.`
+      : 'No había píxeles opacos en el contorno (0-1px del borde).';
+    editorStatus.className = 'status';
+  });
+
+  undoBtn.addEventListener('click', () => {
+    if (editState.undoStack.length === 0) return;
+    editState.data = editState.undoStack.pop();
+    undoBtn.disabled = editState.undoStack.length === 0;
+    drawEditor();
+    editorStatus.textContent = 'Cambio deshecho.';
+  });
+
+  editorCancelBtn.addEventListener('click', () => {
+    overlay.style.display = 'none';
+    editState = null;
+  });
+
+  editorSaveBtn.addEventListener('click', () => {
+    const { anim, index, w, h, data } = editState;
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    tctx.putImageData(new ImageData(data, w, h), 0, 0);
+    const newImg = new Image();
+    newImg.onload = () => {
+      const frame = anim.frames[index];
+      frame.img = newImg;
+      overlay.style.display = 'none';
+      editState = null;
+      window.__renderAllFromEditor && window.__renderAllFromEditor();
+    };
+    newImg.src = tmp.toDataURL('image/png');
+  });
+})();
+</script>
+
+</body>
+</html>

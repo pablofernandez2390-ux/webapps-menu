@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Anim Tester</title>
+<style>
+  :root{
+    --bg: #0a0f0d;
+    --panel: #111917;
+    --line: #1e2b27;
+    --neon: #39ff9a;
+    --neon-dim: #1f8a5c;
+    --text: #d8f5e6;
+    --muted: #6d8c7f;
+    --danger: #ff5f6d;
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Courier New", Consolas, monospace;
+    padding: 24px 16px 60px;
+  }
+  h1{
+    font-size: 20px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 8px rgba(57,255,154,0.45);
+    margin: 0 0 4px;
+  }
+  .sub{
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0 0 22px;
+    line-height: 1.6;
+  }
+  .layout{
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+  @media (max-width: 820px){
+    .layout{ grid-template-columns: 1fr; }
+  }
+  .panel{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 16px;
+  }
+  .panel-title{
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 6px;
+    margin-bottom: 14px;
+  }
+  label{
+    display:block;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    margin-top: 12px;
+  }
+  label:first-child{ margin-top: 0; }
+  input[type=number], input[type=file], input[type=text]{
+    width: 100%;
+    background: #05100b;
+    border: 1px solid var(--line);
+    color: var(--neon);
+    padding: 7px 8px;
+    font-family: inherit;
+    font-size: 13px;
+    border-radius: 2px;
+  }
+  input[type=text]{ color: var(--text); }
+  input[type=file]{ color: var(--text); font-size: 11px; padding: 6px; }
+  input[type=range]{ width: 100%; accent-color: var(--neon); }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .check{
+    display:flex; align-items:center; gap:8px;
+    font-size: 12px; color: var(--text); margin-top: 12px;
+  }
+  .check input{ width:auto; accent-color: var(--neon); }
+  button{
+    background: var(--neon);
+    color: #05100b;
+    border: none;
+    font-family: inherit;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    font-size: 12px;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  button:hover{ background:#7dffbd; }
+  button:disabled{ background: var(--neon-dim); cursor: not-allowed; }
+  button.secondary{
+    background: transparent;
+    color: var(--neon);
+    border: 1px solid var(--neon-dim);
+  }
+  button.secondary:hover{ background: rgba(57,255,154,0.08); }
+  button.icon{ padding: 8px 12px; font-size: 14px; }
+  .status{ font-size: 12px; color: var(--muted); margin-top: 10px; min-height: 16px; }
+  .status.err{ color: var(--danger); }
+
+  .anim-list{ display:flex; flex-direction:column; gap:8px; margin-top: 10px; }
+  .anim-item{
+    display:flex; align-items:center; gap:8px;
+    background: #05100b; border: 1px solid var(--line); border-radius: 3px;
+    padding: 6px;
+  }
+  .anim-item.active{ border-color: var(--neon); }
+  .anim-item input[type=text]{ flex: 1; padding: 6px; font-size: 12px; }
+  .anim-item .count{ font-size: 10px; color: var(--muted); min-width: 34px; text-align:right; }
+  .anim-item button{ padding: 6px 10px; font-size: 11px; white-space: nowrap; }
+
+  .stage-wrap{
+    background-image:
+      linear-gradient(45deg, #14211c 25%, transparent 25%),
+      linear-gradient(-45deg, #14211c 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #14211c 75%),
+      linear-gradient(-45deg, transparent 75%, #14211c 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    background-color: #0a1310;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    display:flex; align-items:center; justify-content:center;
+    min-height: 320px;
+    padding: 20px;
+  }
+  .stage-wrap.solidbg{ background: var(--solid-bg, #202020); }
+  #stageCanvas{ image-rendering: pixelated; display:block; }
+  .stage-empty{ color: var(--muted); font-size: 12px; }
+
+  .transport{
+    margin-top: 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap: wrap;
+  }
+  .transport .spacer{ flex: 1; }
+  .frame-readout{
+    font-size: 12px; color: var(--muted); min-width: 90px; text-align:center;
+  }
+  .anim-name{
+    font-size: 13px; color: var(--neon); letter-spacing: 1px; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<h1>Anim Tester</h1>
+<p class="sub">
+  Cargá el atlas, detectá las animaciones (una por fila) y reproducilas para evaluar si transmiten
+  la sensación que buscás — antes de tocar código de juego. Ajustá velocidad y zoom en vivo.
+</p>
+
+<div class="layout">
+
+  <div class="panel">
+    <div class="panel-title">Atlas</div>
+    <label>Archivo del atlas</label>
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div class="row2">
+      <div>
+        <label>Tamaño de celda (px)</label>
+        <input type="number" id="cellSizeInput" value="32" min="4">
+      </div>
+      <div>
+        <label>Zoom</label>
+        <input type="number" id="zoomInput" value="8" min="1" max="32">
+      </div>
+    </div>
+    <label>Espacio entre celdas del atlas (px)</label>
+    <input type="number" id="gutterInput" value="2" min="0" max="16">
+    <div class="check" style="margin-top:14px;">
+      <input type="checkbox" id="borderCheckToggle" checked>
+      <label style="margin:0">Auditar contaminación de borde</label>
+    </div>
+
+    <button id="detectBtn" style="margin-top:14px; width:100%;">Detectar animaciones</button>
+    <div class="status" id="status"></div>
+
+    <div class="panel-title" style="margin-top:20px;">Animaciones detectadas</div>
+    <div class="anim-list" id="animList">
+      <div class="stage-empty">Cargá un atlas y detectá para ver la lista.</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">
+      <span id="currentAnimLabel" class="anim-name">Sin animación seleccionada</span>
+    </div>
+
+    <div class="stage-wrap" id="stageWrap">
+      <canvas id="stageCanvas" width="1" height="1"></canvas>
+    </div>
+
+    <div class="transport">
+      <button class="secondary icon" id="prevFrameBtn" title="Frame anterior">◀</button>
+      <button id="playBtn" disabled>Reproducir</button>
+      <button class="secondary icon" id="nextFrameBtn" title="Frame siguiente">▶</button>
+      <div class="frame-readout" id="frameReadout">— / —</div>
+      <div class="spacer"></div>
+      <div class="check" style="margin:0;">
+        <input type="checkbox" id="loopCheck" checked>
+        <label style="margin:0">Loop</label>
+      </div>
+      <div class="check" style="margin:0;">
+        <input type="checkbox" id="floorLineCheck">
+        <label style="margin:0">Línea de piso</label>
+      </div>
+      <div class="check" style="margin:0;">
+        <input type="checkbox" id="highlightBorderCheck">
+        <label style="margin:0">Resaltar bordes sospechosos</label>
+      </div>
+      <div class="check" style="margin:0;">
+        <input type="checkbox" id="solidBgCheck">
+        <label style="margin:0">Fondo sólido</label>
+      </div>
+      <input type="color" id="solidBgColor" value="#202020" style="width:34px; height:28px; padding:2px; border:1px solid var(--line); background:#05100b; border-radius:2px;">
+    </div>
+
+    <label style="margin-top:18px;">Velocidad: <span id="fpsReadout">8</span> FPS</label>
+    <input type="range" id="fpsSlider" min="1" max="30" value="8">
+  </div>
+
+</div>
+
+<canvas id="workCanvas" style="display:none"></canvas>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('fileInput');
+  const cellSizeInput = document.getElementById('cellSizeInput');
+  const zoomInput = document.getElementById('zoomInput');
+  const gutterInput = document.getElementById('gutterInput');
+  const borderCheckToggle = document.getElementById('borderCheckToggle');
+  const detectBtn = document.getElementById('detectBtn');
+  const statusEl = document.getElementById('status');
+  const animList = document.getElementById('animList');
+  const workCanvas = document.getElementById('workCanvas');
+  const stageCanvas = document.getElementById('stageCanvas');
+  const stageWrap = document.getElementById('stageWrap');
+  const currentAnimLabel = document.getElementById('currentAnimLabel');
+  const playBtn = document.getElementById('playBtn');
+  const prevFrameBtn = document.getElementById('prevFrameBtn');
+  const nextFrameBtn = document.getElementById('nextFrameBtn');
+  const frameReadout = document.getElementById('frameReadout');
+  const loopCheck = document.getElementById('loopCheck');
+  const floorLineCheck = document.getElementById('floorLineCheck');
+  const highlightBorderCheck = document.getElementById('highlightBorderCheck');
+  const solidBgCheck = document.getElementById('solidBgCheck');
+  const solidBgColor = document.getElementById('solidBgColor');
+  const fpsSlider = document.getElementById('fpsSlider');
+  const fpsReadout = document.getElementById('fpsReadout');
+
+  let loadedImage = null;
+  let cellSize = 32;
+  let animations = []; // { rowIndex, frameCount, label }
+  let currentAnim = null; // reference into animations[]
+  let currentFrame = 0;
+  let isPlaying = false;
+  let lastTs = null;
+  let accum = 0;
+  let fps = 8;
+  let zoom = 8;
+
+  function setStatus(msg, isErr){
+    statusEl.textContent = msg;
+    statusEl.className = 'status' + (isErr ? ' err' : '');
+  }
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const img = new Image();
+    img.onload = () => {
+      loadedImage = img;
+      workCanvas.width = img.width;
+      workCanvas.height = img.height;
+      workCanvas.getContext('2d').drawImage(img, 0, 0);
+      setStatus(`Atlas cargado: ${img.width}×${img.height}px`, false);
+      detectAnimations();
+    };
+    img.onerror = () => setStatus('No se pudo leer la imagen.', true);
+    img.src = URL.createObjectURL(file);
+  });
+
+  cellSizeInput.addEventListener('change', () => {
+    if (loadedImage) detectAnimations();
+  });
+  gutterInput.addEventListener('change', () => {
+    if (loadedImage) detectAnimations();
+  });
+  borderCheckToggle.addEventListener('change', () => {
+    if (loadedImage) detectAnimations();
+  });
+  detectBtn.addEventListener('click', detectAnimations);
+
+  zoomInput.addEventListener('input', () => {
+    zoom = Math.max(1, parseInt(zoomInput.value, 10) || 1);
+    renderFrame();
+  });
+
+  function cellHasContent(sx, sy, size){
+    const ctx = workCanvas.getContext('2d');
+    const data = ctx.getImageData(sx, sy, size, size).data;
+    for (let i = 3; i < data.length; i += 4) {
+      if (data[i] > 10) return true;
+    }
+    return false;
+  }
+
+  // Scans the outer 1px ring of a cell and returns how many pixels there are
+  // non-transparent. A clean, well-packed frame should have zero: real content
+  // (a limb, a weapon) sits inside the cell, not fused to its exact boundary.
+  // A nonzero count is a flag to go check that frame, not an assumption of guilt —
+  // some genuinely tight action poses do reach the edge.
+  function countBorderContamination(sx, sy, size){
+    const ctx = workCanvas.getContext('2d');
+    const data = ctx.getImageData(sx, sy, size, size).data;
+    let count = 0;
+    for (let x = 0; x < size; x++) {
+      const iTop = (x) * 4 + 3;
+      const iBot = ((size - 1) * size + x) * 4 + 3;
+      if (data[iTop] > 10) count++;
+      if (data[iBot] > 10) count++;
+    }
+    for (let y = 1; y < size - 1; y++) {
+      const iLeft = (y * size) * 4 + 3;
+      const iRight = (y * size + size - 1) * 4 + 3;
+      if (data[iLeft] > 10) count++;
+      if (data[iRight] > 10) count++;
+    }
+    return count;
+  }
+
+  function detectAnimations(){
+    if (!loadedImage) { setStatus('Cargá un atlas primero.', true); return; }
+    cellSize = Math.max(4, parseInt(cellSizeInput.value, 10) || 32);
+    const gutter = Math.max(0, parseInt(gutterInput.value, 10) || 0);
+    const pitch = cellSize + gutter;
+
+    const totalCols = Math.floor((loadedImage.width - gutter) / pitch);
+    const totalRows = Math.floor((loadedImage.height - gutter) / pitch);
+
+    if (totalCols < 1 || totalRows < 1) {
+      setStatus('El tamaño de celda / espacio no encaja con las dimensiones del atlas.', true);
+      return;
+    }
+
+    const prevLabels = animations.map(a => a.label);
+    animations = [];
+
+    for (let r = 0; r < totalRows; r++) {
+      let frameCount = 0;
+      let contamination = 0;
+      for (let c = 0; c < totalCols; c++) {
+        const sx = gutter + c * pitch, sy = gutter + r * pitch;
+        if (cellHasContent(sx, sy, cellSize)) {
+          frameCount++;
+          if (borderCheckToggle.checked) {
+            contamination += countBorderContamination(sx, sy, cellSize);
+          }
+        } else {
+          break; // packing is left-aligned per row: first empty cell ends the row
+        }
+      }
+      if (frameCount > 0) {
+        animations.push({
+          rowIndex: r,
+          frameCount: frameCount,
+          contamination: contamination,
+          label: prevLabels[animations.length] || `Fila ${animations.length + 1}`
+        });
+      }
+    }
+
+    renderAnimList();
+    const flagged = animations.filter(a => a.contamination > 0).length;
+    let msg = `Detectadas ${animations.length} animación(es) en una grilla de ${totalCols}×${totalRows} celdas de ${cellSize}px (espacio ${gutter}px).`;
+    if (borderCheckToggle.checked && flagged > 0) {
+      msg += ` ⚠ ${flagged} fila(s) con posible contaminación de borde — revisalas antes de dar por buena la animación.`;
+    }
+    setStatus(msg, borderCheckToggle.checked && flagged > 0);
+
+    if (animations.length > 0) {
+      selectAnimation(animations[0]);
+    } else {
+      currentAnim = null;
+      currentAnimLabel.textContent = 'Sin animación seleccionada';
+      playBtn.disabled = true;
+      frameReadout.textContent = '— / —';
+      clearStage();
+    }
+  }
+
+  function renderAnimList(){
+    animList.innerHTML = '';
+    if (animations.length === 0) {
+      animList.innerHTML = '<div class="stage-empty">No se detectó contenido con este tamaño de celda.</div>';
+      return;
+    }
+    animations.forEach((anim) => {
+      const item = document.createElement('div');
+      item.className = 'anim-item';
+      if (currentAnim === anim) item.classList.add('active');
+
+      const label = document.createElement('input');
+      label.type = 'text';
+      label.value = anim.label;
+      label.addEventListener('input', () => { anim.label = label.value; if (currentAnim === anim) currentAnimLabel.textContent = anim.label; });
+
+      const count = document.createElement('div');
+      count.className = 'count';
+      count.textContent = anim.frameCount + 'f';
+      if (anim.contamination > 0) {
+        count.textContent += ' ⚠' + anim.contamination;
+        count.style.color = 'var(--danger)';
+        item.title = `${anim.contamination} píxel(es) opacos tocando el borde de alguno de sus frames — puede ser contenido real (arma/brazo) o contaminación. Revisá con "Resaltar bordes sospechosos".`;
+      }
+
+      const playRowBtn = document.createElement('button');
+      playRowBtn.textContent = 'Reproducir';
+      playRowBtn.addEventListener('click', () => {
+        selectAnimation(anim);
+        startPlaying();
+      });
+
+      item.appendChild(label);
+      item.appendChild(count);
+      item.appendChild(playRowBtn);
+      animList.appendChild(item);
+    });
+  }
+
+  function selectAnimation(anim){
+    currentAnim = anim;
+    currentFrame = 0;
+    currentAnimLabel.textContent = anim.label;
+    renderAnimList();
+    playBtn.disabled = false;
+    updateFrameReadout();
+    renderFrame();
+  }
+
+  function updateFrameReadout(){
+    if (!currentAnim) { frameReadout.textContent = '— / —'; return; }
+    frameReadout.textContent = `${currentFrame + 1} / ${currentAnim.frameCount}`;
+  }
+
+  function clearStage(){
+    const ctx = stageCanvas.getContext('2d');
+    stageCanvas.width = 1; stageCanvas.height = 1;
+    ctx.clearRect(0,0,1,1);
+  }
+
+  let lastCanvasSize = -1;
+
+  function renderFrame(){
+    if (!currentAnim || !loadedImage) return;
+    const size = cellSize * zoom;
+    if (lastCanvasSize !== size) {
+      stageCanvas.width = size;
+      stageCanvas.height = size;
+      lastCanvasSize = size;
+    }
+    const ctx = stageCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, size, size);
+
+    const gutter = Math.max(0, parseInt(gutterInput.value, 10) || 0);
+    const pitch = cellSize + gutter;
+    const sx = gutter + currentFrame * pitch;
+    const sy = gutter + currentAnim.rowIndex * pitch;
+
+    // Manual pixel-rect draw instead of a scaled drawImage() call. Some Chromium
+    // builds corrupt the edge pixels of a source crop when drawImage() both crops
+    // AND scales up in the same call with image-rendering:pixelated. Reading raw
+    // pixel data with getImageData and painting each source pixel as its own
+    // filled rectangle sidesteps that scaling path entirely.
+    const srcData = workCanvas.getContext('2d').getImageData(sx, sy, cellSize, cellSize).data;
+    const highlight = highlightBorderCheck.checked;
+    for (let y = 0; y < cellSize; y++) {
+      for (let x = 0; x < cellSize; x++) {
+        const i = (y * cellSize + x) * 4;
+        const a = srcData[i + 3];
+        if (a === 0) continue;
+        const onBorder = (x === 0 || y === 0 || x === cellSize - 1 || y === cellSize - 1);
+        if (highlight && onBorder) {
+          ctx.fillStyle = 'rgba(255,45,140,0.95)';
+        } else {
+          ctx.fillStyle = `rgba(${srcData[i]},${srcData[i+1]},${srcData[i+2]},${a/255})`;
+        }
+        ctx.fillRect(x * zoom, y * zoom, zoom, zoom);
+      }
+    }
+
+    if (floorLineCheck.checked) {
+      const floorY = Math.round(size * 0.9);
+      ctx.strokeStyle = 'rgba(255,60,120,0.9)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, floorY + 0.5);
+      ctx.lineTo(size, floorY + 0.5);
+      ctx.stroke();
+    }
+    updateFrameReadout();
+  }
+
+  prevFrameBtn.addEventListener('click', () => {
+    if (!currentAnim) return;
+    stopPlaying();
+    currentFrame = (currentFrame - 1 + currentAnim.frameCount) % currentAnim.frameCount;
+    renderFrame();
+  });
+  nextFrameBtn.addEventListener('click', () => {
+    if (!currentAnim) return;
+    stopPlaying();
+    currentFrame = (currentFrame + 1) % currentAnim.frameCount;
+    renderFrame();
+  });
+
+  playBtn.addEventListener('click', () => {
+    if (isPlaying) stopPlaying(); else startPlaying();
+  });
+
+  function startPlaying(){
+    if (!currentAnim) return;
+    isPlaying = true;
+    playBtn.textContent = 'Pausar';
+    lastTs = null;
+    accum = 0;
+    requestAnimationFrame(tick);
+  }
+  function stopPlaying(){
+    isPlaying = false;
+    playBtn.textContent = 'Reproducir';
+  }
+
+  function tick(ts){
+    if (!isPlaying) return;
+    if (lastTs === null) lastTs = ts;
+    const dt = ts - lastTs;
+    lastTs = ts;
+    accum += dt;
+    const frameDuration = 1000 / fps;
+    let advanced = false;
+    while (accum >= frameDuration) {
+      accum -= frameDuration;
+      const atEnd = currentFrame >= currentAnim.frameCount - 1;
+      if (atEnd) {
+        if (loopCheck.checked) {
+          currentFrame = 0;
+          advanced = true;
+        } else {
+          stopPlaying();
+          break;
+        }
+      } else {
+        currentFrame++;
+        advanced = true;
+      }
+    }
+    if (advanced) renderFrame();
+    if (isPlaying) requestAnimationFrame(tick);
+  }
+
+  fpsSlider.addEventListener('input', () => {
+    fps = parseInt(fpsSlider.value, 10);
+    fpsReadout.textContent = fps;
+  });
+
+  floorLineCheck.addEventListener('change', renderFrame);
+  highlightBorderCheck.addEventListener('change', renderFrame);
+  solidBgCheck.addEventListener('change', () => {
+    stageWrap.classList.toggle('solidbg', solidBgCheck.checked);
+    stageWrap.style.setProperty('--solid-bg', solidBgColor.value);
+  });
+  solidBgColor.addEventListener('input', () => {
+    stageWrap.style.setProperty('--solid-bg', solidBgColor.value);
+  });
+})();
+</script>
+
+</body>
+</html>
