@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebApps Menu</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .menu {
+            width: 90%;
+            max-width: 700px;
+            padding: 40px;
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 36px;
+        }
+
+        .subtitle {
+            margin-bottom: 35px;
+            color: #aaaaaa;
+        }
+
+        .apps {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+
+        .app {
+            display: block;
+            padding: 25px 15px;
+            background: #292929;
+            color: white;
+            text-decoration: none;
+            border: 1px solid #444;
+            border-radius: 10px;
+            transition: 0.2s;
+        }
+
+        .app:hover {
+            background: #3a3a3a;
+            transform: translateY(-2px);
+        }
+
+        .app-name {
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .app-file {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #888888;
+        }
+
+        @media (max-width: 600px) {
+            .apps {
+                grid-template-columns: 1fr;
+            }
+
+            .menu {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="menu">
+
+        <h1>Mis WebApps</h1>
+
+        <div class="subtitle">
+            Herramientas de desarrollo
+        </div>
+
+        <div class="apps">
+
+            <a class="app" href="Anim-tester.html">
+                <div class="app-name">Anim Tester</div>
+                <div class="app-file">Anim-tester.html</div>
+            </a>
+
+            <a class="app" href="Anim-tester(1).html">
+                <div class="app-name">Anim Tester 2</div>
+                <div class="app-file">Anim-tester(1).html</div>
+            </a>
+
+            <a class="app" href="Atlas-designer.html">
+                <div class="app-name">Atlas Designer</div>
+                <div class="app-file">Atlas-designer.html</div>
+            </a>
+
+            <a class="app" href="Atlas-pixelizer.html">
+                <div class="app-name">Atlas Pixelizer</div>
+                <div class="app-file">Atlas-pixelizer.html</div>
+            </a>
+
+            <a class="app" href="Atlas-pixelizer(1).html">
+                <div class="app-name">Atlas Pixelizer 2</div>
+                <div class="app-file">Atlas-pixelizer(1).html</div>
+            </a>
+
+            <a class="app" href="Pixel-editor.html">
+                <div class="app-name">Pixel Editor</div>
+                <div class="app-file">Pixel-editor.html</div>
+            </a>
+
+        </div>
+
+    </div>
+
+</body>
+</html>
