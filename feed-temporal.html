@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feed temporal</title>
+<style>
+  :root{
+    --bg: #0b0f12;
+    --panel: #131a1f;
+    --line: #253039;
+    --accent: #39d3ff;
+    --accent-dim: #1c6f87;
+    --text: #e7f3f7;
+    --muted: #7c93a0;
+    --danger: #ff5f6d;
+    --bubble: #1a2329;
+    --bubble-reply: #17252b;
+  }
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 14px 12px 90px;
+  }
+  h1{ font-size: 17px; margin: 0 0 4px; color: var(--accent); }
+  .sub{ font-size: 12px; color: var(--muted); margin: 0 0 14px; line-height:1.5; }
+
+  #sectionTabs{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom: 14px; }
+  .tab{
+    background: transparent; color: var(--muted); border:1px solid var(--line);
+    padding: 7px 12px; border-radius: 16px; font-size: 12px; cursor:pointer;
+  }
+  .tab.active{ background: var(--accent); color:#04222b; border-color: var(--accent); font-weight:bold; }
+
+  #composer{
+    background: var(--panel); border:1px solid var(--line); border-radius: 8px;
+    padding: 12px; margin-bottom: 18px;
+  }
+  textarea{
+    width:100%; background:#0d1418; border:1px solid var(--line); color:var(--text);
+    border-radius:6px; padding:9px 10px; font-family:inherit; font-size:14px;
+    resize:none; min-height:56px;
+  }
+  #emojiPicker{ display:flex; flex-wrap:wrap; gap:4px; margin:8px 0; max-height:74px; overflow-y:auto; }
+  #emojiPicker button{
+    background:none; border:none; font-size:19px; padding:3px; cursor:pointer; border-radius:4px;
+  }
+  #emojiPicker button:hover{ background: rgba(255,255,255,0.08); }
+  .composer-row{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:6px; }
+  input[type=file]{ color: var(--muted); font-size:11px; max-width: 160px; }
+  button.primary{
+    background: var(--accent); color:#04222b; border:none; font-weight:bold;
+    padding: 9px 16px; border-radius: 6px; font-size:13px; cursor:pointer;
+  }
+  button.primary:hover{ filter:brightness(1.1); }
+  button.primary:disabled{ background: var(--accent-dim); cursor:not-allowed; }
+  button.ghost{
+    background:none; border:1px solid var(--line); color:var(--muted);
+    padding:6px 10px; border-radius:6px; font-size:12px; cursor:pointer;
+  }
+  #composerStatus{ font-size:11px; color:var(--muted); margin-top:6px; min-height:14px; }
+  #imgPreview{ max-width:80px; max-height:80px; border-radius:6px; margin-top:6px; display:none; }
+
+  .post{
+    background: var(--bubble); border:1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; margin-bottom: 10px;
+  }
+  .post.reply{ background: var(--bubble-reply); margin-left: 22px; margin-top:8px; margin-bottom:0; }
+  .post-meta{ font-size:10px; color:var(--muted); margin-bottom:4px; display:flex; justify-content:space-between; gap:8px;}
+  .post-text{ font-size:14px; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+  .post-img{ max-width: 140px; max-height:140px; border-radius:6px; margin-top:6px; display:block; image-rendering:auto; }
+  .post-actions{ display:flex; gap:10px; margin-top:6px; }
+  .post-actions button{ background:none; border:none; color:var(--accent); font-size:11px; cursor:pointer; padding:2px 0; }
+  .post-actions button.del{ color: var(--danger); }
+  .reply-composer{ margin-top:8px; display:none; }
+  .reply-composer textarea{ min-height:38px; font-size:13px; }
+
+  #emptyMsg{ color:var(--muted); font-size:13px; text-align:center; padding:30px 0; }
+
+  #modBtn{
+    position:fixed; bottom:14px; right:14px; z-index:100;
+    background: var(--panel); border:1px solid var(--line); color:var(--muted);
+    width:42px; height:42px; border-radius:50%; font-size:18px; cursor:pointer;
+    box-shadow:0 2px 10px rgba(0,0,0,0.5);
+  }
+  #modBtn.active{ border-color: var(--danger); color: var(--danger); }
+</style>
+</head>
+<body>
+
+<h1>💬 Feed temporal</h1>
+<p class="sub">Escribí, respondé, subí imágenes chicas o emojis (incluso animados). Todo se borra automáticamente a las 24 horas.</p>
+
+<div id="sectionTabs"></div>
+
+<div id="composer">
+  <textarea id="postText" maxlength="300" placeholder="Escribí algo..."></textarea>
+  <div id="emojiPicker"></div>
+  <img id="imgPreview">
+  <div class="composer-row">
+    <input type="file" id="imageInput" accept="image/*">
+    <button class="primary" id="submitPostBtn">Publicar</button>
+  </div>
+  <div id="composerStatus"></div>
+</div>
+
+<div id="feedList"></div>
+<div id="emptyMsg" style="display:none;">Todavía no hay nada acá. ¡Escribí el primer mensaje!</div>
+
+<button id="modBtn" title="Modo moderador">🔑</button>
+
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-database-compat.js"></script>
+<script>
+// ============================================================
+// CONFIGURACIÓN — EDITAR ESTA SECCIÓN ANTES DE PUBLICAR
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyBh5z3ZLs2DhcVTSnBWE-ZHUqmP9O2qVIA",
+  authDomain: "feed-temporal.firebaseapp.com",
+  databaseURL: "https://feed-temporal-default-rtdb.firebaseio.com",
+  projectId: "feed-temporal",
+  storageBucket: "feed-temporal.firebasestorage.app",
+  messagingSenderId: "273440424476",
+  appId: "1:273440424476:web:5c7bdfbd2cd397f8f315d9"
+};
+
+const SECTIONS = ["General", "Arte", "Preguntas"];   // ramas del feed — agregá o renombrá las que quieras
+const ADMIN_PIN = "1234";                             // cambiá esto por tu propio PIN
+const EXPIRY_MS = 24 * 60 * 60 * 1000;                // 24 horas
+const MAX_IMAGE_DIM = 130;                            // px, para imágenes estáticas (se re-escalan)
+const MAX_GIF_BYTES = 300 * 1024;                     // límite de archivo para gifs animados (no se re-escalan)
+const EMOJIS = ["😀","😂","😍","🤔","😢","😡","🔥","👍","👎","🎉","❤️","😎","🙌","💀","👀","✨","🥳","😴","🤯","🙏"];
+// ============================================================
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const postsRef = db.ref("posts");
+
+const sectionTabs = document.getElementById("sectionTabs");
+const postText = document.getElementById("postText");
+const emojiPicker = document.getElementById("emojiPicker");
+const imageInput = document.getElementById("imageInput");
+const imgPreview = document.getElementById("imgPreview");
+const submitPostBtn = document.getElementById("submitPostBtn");
+const composerStatus = document.getElementById("composerStatus");
+const feedList = document.getElementById("feedList");
+const emptyMsg = document.getElementById("emptyMsg");
+const modBtn = document.getElementById("modBtn");
+
+let currentSection = SECTIONS[0];
+let allPosts = {};
+let pendingImageDataUrl = null;
+let isAdmin = false;
+
+// ---------- sections ----------
+function renderTabs(){
+  sectionTabs.innerHTML = "";
+  SECTIONS.forEach(sec => {
+    const b = document.createElement("button");
+    b.className = "tab" + (sec === currentSection ? " active" : "");
+    b.textContent = sec;
+    b.addEventListener("click", () => { currentSection = sec; renderTabs(); renderFeed(); });
+    sectionTabs.appendChild(b);
+  });
+}
+
+// ---------- emoji picker ----------
+EMOJIS.forEach(e => {
+  const b = document.createElement("button");
+  b.textContent = e;
+  b.addEventListener("click", () => { postText.value += e; postText.focus(); });
+  emojiPicker.appendChild(b);
+});
+
+// ---------- image handling ----------
+function resizeStaticImage(file, maxDim){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      c.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL("image/jpeg", 0.72));
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => reject(new Error("No se pudo leer la imagen."));
+    img.src = URL.createObjectURL(file);
+  });
+}
+function readFileAsDataURL(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+imageInput.addEventListener("change", async () => {
+  const file = imageInput.files[0];
+  if (!file) return;
+  composerStatus.textContent = "Procesando imagen...";
+  try {
+    if (file.type === "image/gif") {
+      // GIFs animados: no se re-escalan (perdería la animación al pasar por canvas),
+      // solo se limita el tamaño del archivo.
+      if (file.size > MAX_GIF_BYTES) {
+        composerStatus.textContent = `El GIF pesa demasiado (máximo ${Math.round(MAX_GIF_BYTES/1024)}KB). Probá con uno más chico.`;
+        imageInput.value = "";
+        return;
+      }
+      pendingImageDataUrl = await readFileAsDataURL(file);
+    } else {
+      pendingImageDataUrl = await resizeStaticImage(file, MAX_IMAGE_DIM);
+    }
+    imgPreview.src = pendingImageDataUrl;
+    imgPreview.style.display = "block";
+    composerStatus.textContent = "Imagen lista para publicar.";
+  } catch (err) {
+    composerStatus.textContent = err.message;
+    pendingImageDataUrl = null;
+  }
+});
+
+// ---------- posting ----------
+function submitPost(section, parentId, textEl, statusEl, clearImage){
+  const text = textEl.value.trim();
+  const image = clearImage ? pendingImageDataUrl : null;
+  if (!text && !image) { statusEl.textContent = "Escribí algo o adjuntá una imagen."; return; }
+  postsRef.push({
+    section: section,
+    parentId: parentId || null,
+    text: text,
+    image: image || null,
+    timestamp: firebase.database.ServerValue.TIMESTAMP
+  });
+  textEl.value = "";
+  if (clearImage) {
+    pendingImageDataUrl = null;
+    imgPreview.style.display = "none";
+    imageInput.value = "";
+  }
+  statusEl.textContent = "";
+}
+submitPostBtn.addEventListener("click", () => submitPost(currentSection, null, postText, composerStatus, true));
+
+// ---------- feed rendering ----------
+function timeAgo(ts){
+  const diffMin = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (diffMin < 1) return "ahora";
+  if (diffMin < 60) return `hace ${diffMin} min`;
+  const diffH = Math.round(diffMin / 60);
+  return `hace ${diffH} h`;
+}
+
+function renderPost(id, post, isReply){
+  const el = document.createElement("div");
+  el.className = "post" + (isReply ? " reply" : "");
+
+  const meta = document.createElement("div");
+  meta.className = "post-meta";
+  const time = document.createElement("span");
+  time.textContent = timeAgo(post.timestamp || Date.now());
+  meta.appendChild(time);
+  if (isAdmin) {
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "🗑 borrar";
+    del.style.background = "none"; del.style.border = "none"; del.style.cursor = "pointer";
+    del.addEventListener("click", () => postsRef.child(id).remove());
+    meta.appendChild(del);
+  }
+  el.appendChild(meta);
+
+  if (post.text) {
+    const txt = document.createElement("div");
+    txt.className = "post-text";
+    txt.textContent = post.text;
+    el.appendChild(txt);
+  }
+  if (post.image) {
+    const img = document.createElement("img");
+    img.className = "post-img";
+    img.src = post.image;
+    el.appendChild(img);
+  }
+
+  if (!isReply) {
+    const actions = document.createElement("div");
+    actions.className = "post-actions";
+    const replyBtn = document.createElement("button");
+    replyBtn.textContent = "Responder";
+    const replyBox = document.createElement("div");
+    replyBox.className = "reply-composer";
+    const replyText = document.createElement("textarea");
+    replyText.placeholder = "Responder...";
+    const replySend = document.createElement("button");
+    replySend.className = "primary";
+    replySend.textContent = "Enviar";
+    replySend.style.marginTop = "6px";
+    replySend.style.padding = "6px 12px";
+    replySend.style.fontSize = "12px";
+    const replyStatus = document.createElement("div");
+    replyStatus.style.fontSize = "11px";
+    replyStatus.style.color = "var(--muted)";
+    replySend.addEventListener("click", () => submitPost(post.section, id, replyText, replyStatus, false));
+    replyBtn.addEventListener("click", () => {
+      replyBox.style.display = replyBox.style.display === "block" ? "none" : "block";
+    });
+    replyBox.appendChild(replyText);
+    replyBox.appendChild(replySend);
+    replyBox.appendChild(replyStatus);
+    actions.appendChild(replyBtn);
+    el.appendChild(actions);
+    el.appendChild(replyBox);
+  }
+
+  return el;
+}
+
+function renderFeed(){
+  feedList.innerHTML = "";
+  const entries = Object.entries(allPosts)
+    .filter(([id, p]) => p.section === currentSection && !p.parentId)
+    .sort((a, b) => (b[1].timestamp||0) - (a[1].timestamp||0));
+
+  emptyMsg.style.display = entries.length === 0 ? "block" : "none";
+
+  entries.forEach(([id, post]) => {
+    const postEl = renderPost(id, post, false);
+    feedList.appendChild(postEl);
+    const replies = Object.entries(allPosts)
+      .filter(([rid, r]) => r.parentId === id)
+      .sort((a, b) => (a[1].timestamp||0) - (b[1].timestamp||0));
+    replies.forEach(([rid, reply]) => {
+      postEl.appendChild(renderPost(rid, reply, true));
+    });
+  });
+}
+
+// ---------- live sync + 24h cleanup ----------
+postsRef.on("value", (snapshot) => {
+  allPosts = snapshot.val() || {};
+  renderFeed();
+  cleanupExpired();
+});
+
+function cleanupExpired(){
+  const now = Date.now();
+  Object.entries(allPosts).forEach(([id, p]) => {
+    if (now - (p.timestamp||0) > EXPIRY_MS) {
+      postsRef.child(id).remove();
+    }
+  });
+}
+setInterval(cleanupExpired, 5 * 60 * 1000);
+
+// ---------- moderation ----------
+modBtn.addEventListener("click", () => {
+  if (isAdmin) {
+    isAdmin = false;
+    modBtn.classList.remove("active");
+    modBtn.textContent = "🔑";
+    renderFeed();
+    return;
+  }
+  const pin = prompt("PIN de moderador:");
+  if (pin === null) return;
+  if (pin === ADMIN_PIN) {
+    isAdmin = true;
+    modBtn.classList.add("active");
+    modBtn.textContent = "🔓";
+    renderFeed();
+  } else {
+    alert("PIN incorrecto.");
+  }
+});
+
+renderTabs();
+</script>
+
+</body>
+</html>
